@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { fetchAllNews, saveArticlesToDb } from "@/lib/news-fetcher";
 
+// Force dynamic so Next.js does not try to pre-render this route at build time
+export const dynamic = "force-dynamic";
+
 const CRON_SECRET = process.env.CRON_SECRET;
+
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

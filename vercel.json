@@ -1,8 +1,19 @@
 {
   "crons": [
-    {
-      "path": "/api/cron/ai-updates?secret=${CRON_SECRET}",
-      "schedule": "0 6 * * *"
-    }
+    { "path": "/api/cron/ai-updates", "schedule": "0 0 * * *" },
+    { "path": "/api/cron/ai-updates", "schedule": "36 1 * * *" },
+    { "path": "/api/cron/ai-updates", "schedule": "12 3 * * *" },
+    { "path": "/api/cron/ai-updates", "schedule": "48 4 * * *" },
+    { "path": "/api/cron/ai-updates", "schedule": "24 6 * * *" },
+    { "path": "/api/cron/ai-updates", "schedule": "0 8 * * *" },
+    { "path": "/api/cron/ai-updates", "schedule": "36 9 * * *" },
+    { "path": "/api/cron/ai-updates", "schedule": "12 11 * * *" },
+    { "path": "/api/cron/ai-updates", "schedule": "48 12 * * *" },
+    { "path": "/api/cron/ai-updates", "schedule": "24 14 * * *" },
+    { "path": "/api/cron/ai-updates", "schedule": "0 16 * * *" },
+    { "path": "/api/cron/ai-updates", "schedule": "36 17 * * *" },
+    { "path": "/api/cron/ai-updates", "schedule": "12 19 * * *" },
+    { "path": "/api/cron/ai-updates", "schedule": "48 20 * * *" },
+    { "path": "/api/cron/ai-updates", "schedule": "24 22 * * *" }
   ]
 }
