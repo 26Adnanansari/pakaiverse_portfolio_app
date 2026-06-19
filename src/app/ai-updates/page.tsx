@@ -5,6 +5,7 @@ import Navbar from "@/components/portfolio/Navbar";
 import Footer from "@/components/portfolio/Footer";
 import AIUpdatesClient from "./AIUpdatesClient";
 import { CATEGORY_CONFIG, type ArticleItem } from "./config";
+import { getFallbackImage } from "@/lib/news-fetcher";
 
 export const revalidate = 3600;
 
@@ -32,7 +33,7 @@ export default async function AIUpdatesPage() {
           title: p.title,
           description: p.description ?? "",
           url: p.url,
-          imageUrl: p.imageUrl ?? null,
+          imageUrl: p.imageUrl ?? getFallbackImage(p.category ?? "general", p.title),
           source: p.source ?? "",
           category: p.category ?? "general",
           publishedAt: new Date(p.publishedAt),

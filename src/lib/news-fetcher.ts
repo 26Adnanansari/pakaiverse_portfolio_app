@@ -71,24 +71,65 @@ const rssParser = new Parser({
 });
 
 // ============================================================
-// IMAGE EXTRACTION — multiple strategies
+// IMAGE EXTRACTION & FORMATTING (Free AI Formatter)
 // ============================================================
+export const FALLBACK_IMAGES: Record<string, string[]> = {
+  nvidia: [
+    "https://images.unsplash.com/photo-1610812389656-b816a7f920da?q=80&w=800&auto=format&fit=crop", // GPU
+    "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=800&auto=format&fit=crop", // Server
+    "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=800&auto=format&fit=crop", // Chip
+    "https://images.unsplash.com/photo-1591462286820-2136e0d37e6f?q=80&w=800&auto=format&fit=crop"  // Circuit
+  ],
+  openai: [
+    "https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=800&auto=format&fit=crop", // OpenAI Logo
+    "https://images.unsplash.com/photo-1684369176140-5205561a3556?q=80&w=800&auto=format&fit=crop", // ChatGPT
+    "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=800&auto=format&fit=crop", // AI Brain
+    "https://images.unsplash.com/photo-1507146426996-ef05306b995a?q=80&w=800&auto=format&fit=crop"  // Robot dog/AI
+  ],
+  google: [
+    "https://images.unsplash.com/photo-1573164713988-8665fc963095?q=80&w=800&auto=format&fit=crop", // Server racks
+    "https://images.unsplash.com/photo-1529156069898-49953eb1b5ce?q=80&w=800&auto=format&fit=crop", // Colorful tech
+    "https://images.unsplash.com/photo-1563986768494-4dee2763ff0f?q=80&w=800&auto=format&fit=crop"  // Server lights
+  ],
+  llm: [
+    "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=800&auto=format&fit=crop", // Code Matrix
+    "https://images.unsplash.com/photo-1555949963-aa79dcee57d5?q=80&w=800&auto=format&fit=crop", // Screen Code
+    "https://images.unsplash.com/photo-1542831371-29b0f74f9713?q=80&w=800&auto=format&fit=crop"  // Programming
+  ],
+  general: [
+    "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?q=80&w=800&auto=format&fit=crop", // Tech generic
+    "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=800&auto=format&fit=crop", // CPU
+    "https://images.unsplash.com/photo-1531297172868-9f140ee6ea51?q=80&w=800&auto=format&fit=crop", // Data visualization
+    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=800&auto=format&fit=crop", // Global network
+    "https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=800&auto=format&fit=crop"  // Tech collaboration
+  ]
+};
+
+export function getFallbackImage(category: string, title: string): string {
+  const images = FALLBACK_IMAGES[category] || FALLBACK_IMAGES.general;
+  const sum = title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return images[sum % images.length];
+}
+
+function autoCategorize(text: string, defaultCategory: string): string {
+  const t = text.toLowerCase();
+  if (t.includes("nvidia") || t.includes("gpu") || t.includes("cuda")) return "nvidia";
+  if (t.includes("openai") || t.includes("chatgpt") || t.includes("gpt")) return "openai";
+  if (t.includes("google") || t.includes("gemini") || t.includes("bard")) return "google";
+  if (t.includes("claude") || t.includes("anthropic")) return "claude";
+  if (t.includes("llama") || t.includes("mistral") || t.includes("llm")) return "llm";
+  return defaultCategory;
+}
+
 function extractImage(item: Parser.Item & {
   mediaContent?: { $?: { url?: string } };
   mediaThumbnail?: { $?: { url?: string } };
   enclosure?: { url?: string; type?: string };
 }): string | null {
-  // 1. media:content
   if (item.mediaContent?.$?.url) return item.mediaContent.$.url;
-
-  // 2. media:thumbnail
   if (item.mediaThumbnail?.$?.url) return item.mediaThumbnail.$.url;
-
-  // 3. enclosure (podcasts / images)
-  if (item.enclosure?.url && item.enclosure?.type?.startsWith("image"))
-    return item.enclosure.url;
-
-  // 4. Parse from HTML content
+  if (item.enclosure?.url && item.enclosure?.type?.startsWith("image")) return item.enclosure.url;
+  
   const html = (item as Record<string, unknown>)["content:encoded"] as string || item.content || "";
   const match = html.match(/<img[^>]+src=["']([^"'>]+)["']/i);
   if (match) return match[1];
@@ -99,18 +140,29 @@ function extractImage(item: Parser.Item & {
 // ============================================================
 // FETCH FROM SINGLE RSS FEED
 // ============================================================
-async function fetchFeed(feedUrl: string, category: string): Promise<NewsArticle[]> {
+async function fetchFeed(feedUrl: string, feedCategory: string): Promise<NewsArticle[]> {
   try {
     const feed = await rssParser.parseURL(feedUrl);
     return feed.items.slice(0, 4).map((item) => {
       const url = item.link || item.guid || "";
+      const title = item.title?.trim() || "Untitled";
+      const description = (item.contentSnippet || item.summary || "").slice(0, 400);
+      const fullText = title + " " + description;
+      
+      const category = autoCategorize(fullText, feedCategory);
+      let imageUrl = extractImage(item as Parameters<typeof extractImage>[0]);
+      
+      if (!imageUrl) {
+        imageUrl = getFallbackImage(category, title);
+      }
+
       return {
         id: Buffer.from(url).toString("base64").replace(/[^a-zA-Z0-9]/g, "").slice(0, 20),
-        title: item.title?.trim() || "Untitled",
-        description: (item.contentSnippet || item.summary || "").slice(0, 400),
+        title,
+        description,
         content: ((item as unknown as Record<string, unknown>)["content:encoded"] as string) || item.content || item.contentSnippet || "",
         url,
-        imageUrl: extractImage(item as Parameters<typeof extractImage>[0]),
+        imageUrl,
         source: feed.title?.trim() || feedUrl,
         category,
         publishedAt: item.isoDate || new Date().toISOString(),

@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
-import { PORTFOLIO } from "@/config/portfolio";
 import "./globals.css";
 
 const plusJakarta = Plus_Jakarta_Sans({

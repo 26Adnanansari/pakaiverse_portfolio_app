@@ -41,25 +41,34 @@ Aapki batayi gayi list ke mutabiq, yeh sab features abhi **pending (Not Implemen
   - *Goal:* Improve Google ranking and social sharing.
   - *Method:* Add comprehensive `metadata` object in `src/app/layout.tsx` (OpenGraph, Twitter cards, keywords).
 
-- [ ] **3. Auto-Generate Sitemap & Robots:** 
-  - *Goal:* Help search engines index pages and news dynamically.
-  - *Method:* Create `src/app/sitemap.ts` and `src/app/robots.ts`.
+- [x] **3. Auto-Generate Sitemap & Robots:** 
+  - *Goal:* Ensure Google indexing works perfectly.
+  - *Method:* Create `src/app/sitemap.ts` and `src/app/robots.ts` using Next.js App Router conventions.
 
-- [ ] **4. Guest Post Marketplace (Static Page):** 
-  - *Goal:* Sell GBOB services directly from the site.
-  - *Method:* Create `/guest-posts` route with pricing tiers (Starter, Pro, Premium) and WhatsApp CTA buttons.
+- [x] **4. Guest Post Marketplace (Static Page):** 
+  - *Goal:* Create a beautiful page to sell backlinks.
+  - *Method:* Add a new static route `/guest-posts` showing 3 pricing tiers. Direct WhatsApp CTA for orders.
 
-- [ ] **5. Lead Capture to Database (Drizzle + Neon):** 
-  - *Goal:* Save contact form queries in DB.
-  - *Method:* Add `leads` table in `src/db/schema.ts` with fields (name, email, phone, budget, etc.).
+- [x] **5. Lead Capture to Database (Drizzle + Neon):** 
+  - *Goal:* Save contact form submissions so no leads are lost.
+  - *Method:* Add `leads` table in `src/db/schema.ts` and push to Neon.
 
-- [ ] **6. Contact Form API (DB + WhatsApp):** 
+- [x] **6. Contact Form API (DB + WhatsApp):** 
   - *Goal:* Dual action — save lead to DB AND redirect to WhatsApp.
   - *Method:* Create `/api/contact/route.ts` to handle form POST requests.
 
-- [ ] **7. Free News Formatter (No AI API Cost):** 
+- [x] **7. Free News Formatter (No AI API Cost):** 
   - *Goal:* Auto-categorize and extract tags from RSS feeds without paying for OpenAI API.
   - *Method:* Update `src/lib/news/formatters.ts` with keyword matching for NVIDIA, OpenAI, LLM, etc.
+
+## Phase 3: Guest Post Order Management & Admin Dashboard (New Features)
+
+- [x] **1. Navbar Update:** Added `Guest Posts` link to the main navigation for easy access.
+- [x] **2. Database Schema (`guest_post_orders`):** Created a new table in Neon DB to store client orders, URLs, keywords, and payment statuses.
+- [x] **3. Frontend Order Form (Modal):** Built a professional popup form on the `/guest-posts` page that collects client details before redirecting to WhatsApp.
+- [x] **4. Order Processing API (`/api/orders`):** Securely saves order data to the database and generates a formatted WhatsApp redirect message.
+- [x] **5. Admin Dashboard (`/admin`):** Created a dedicated admin panel to view all orders.
+- [x] **6. Admin API (`/api/admin/orders`):** Built functionality for the admin to update Payment Status (Paid/Unpaid) and Order Status (Pending, Active, Expired).
 
 ---
 
@@ -81,3 +90,138 @@ By hosting a live, constantly updating **AI Updates** section, we show potential
 
 ### 4. Seamless Deal Closing
 - The contact form directly connects international leads to your WhatsApp. Fast response times in GBOB and freelance tech services dramatically increase the chances of closing high-ticket ($1,000+) deals.
+
+---
+
+## Phase 4: OAuth & Secure Admin Auth 🔐
+
+- [x] **1. Install NextAuth.js (Auth.js v5)**
+  - `npm install next-auth@beta`
+  - Created `src/auth.ts` with Google Provider config
+
+- [x] **2. Google OAuth Credentials**
+  - Google Cloud Console → OAuth 2.0 Client ID configured
+  - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_SECRET`, `ADMIN_EMAIL` added to `.env.local`
+
+- [x] **3. Auth API Route**
+  - Created `src/app/api/auth/[...nextauth]/route.ts`
+
+- [x] **4. Admin Route Protection (Middleware)**
+  - Created `middleware.ts` at root level
+  - Only allows authorized Gmail account to access `/admin/**`
+
+- [x] **5. Login Page (`/admin/login`)**
+  - Beautiful mobile-responsive login page with "Sign in with Google" button
+
+- [x] **6. Admin Layout with Session Check**
+  - `src/app/admin/layout.tsx` — shows user avatar, nav links, and logout button
+  - Server-side auth check — redirects unauthenticated users to login
+
+- [x] **7. Build Verified** — All 14 routes compile with zero errors ✅
+
+---
+
+## Phase 5: Admin Dashboard Upgrade 📊
+
+- [ ] **1. Guest Post Orders — Date Management**
+  - Add Start Date & Expire Date pickers in admin table
+  - "Mark as Active" auto-sets today as start_date
+  - "Renew" button extends expire_date by 1 year
+
+- [ ] **2. Contact Leads Section**
+  - View all leads from the homepage contact form in admin
+
+- [ ] **3. Dashboard Stats Cards**
+  - Total orders, Total leads, Active posts, Pending payments
+
+---
+
+## Phase 6: Blog System 📝
+
+- [ ] **1. Blog Database Table (`blog_posts`)**
+  - SQL: id, title, slug, content, cover_image, category, tags, author, status (draft/published), created_at
+
+- [ ] **2. Public Blog Pages**
+  - `/blog` — All published posts with cover images (mobile responsive cards)
+  - `/blog/[slug]` — Full article page with SEO metadata
+
+- [ ] **3. Admin Blog Editor**
+  - `/admin/blog` — List all posts, create/edit/delete
+  - Rich text editor for writing posts
+  - Image URL input for cover image
+  - Publish / Save as Draft toggle
+
+- [ ] **4. Blog API Routes**
+  - `GET /api/blog` — Fetch all published posts
+  - `POST /api/admin/blog` — Create new post
+  - `PATCH /api/admin/blog/[id]` — Update post
+  - `DELETE /api/admin/blog/[id]` — Delete post
+
+---
+
+## Phase 7: Additional Services Pages 🛍️
+
+- [ ] **1. `/services/web-development`** — Full Stack packages with order form
+- [ ] **2. `/services/seo`** — SEO Audit, On-Page, Technical packages
+- [ ] **3. `/services/ai-automation`** — AI Chatbots, Automation workflows
+- [ ] **4. `/services/content-writing`** — Blog posts, product descriptions
+
+Each page has:
+- Premium pricing cards (same modal order flow → DB → WhatsApp)
+- Mobile responsive layout
+- FAQ accordion section
+
+---
+
+## Phase 8: Client Order Tracking Portal 🧑‍💼
+
+- [ ] **1. `/track` route** — Client enters their email
+- [ ] **2. Show all their orders** with status, dates, expiry countdown
+- [ ] **3. "Renew" button** → WhatsApp redirect for renewal
+
+---
+
+## Phase 9: Professional Email Setup 📧
+
+### Goal: `admin@yourdomain.com` → Gmail inbox (FREE via Cloudflare Email Routing)
+
+**Step 1: Cloudflare Email Routing Setup**
+- Cloudflare Dashboard → apna domain select karo
+- Left menu: `Email` → `Email Routing` → `Enable Email Routing`
+- `Add address`: `admin@yourdomain.com` → Forward to: apni Gmail
+- Cloudflare automatically DNS records add kar dega (MX + SPF)
+- Verify karo apni Gmail se
+
+**Step 2: Gmail me "Send As" Setup (Outgoing Mail)**
+Taake aap Gmail se reply karte waqt `admin@yourdomain.com` show ho:
+- Gmail Settings → Accounts → `Add another email address`
+- SMTP Server: `smtp.gmail.com` Port: `587`
+- Gmail mein App Password use karo (2FA on karo → App passwords)
+- `.env.local` mein add karo:
+  ```
+  EMAIL_USER="apni.gmail@gmail.com"
+  EMAIL_APP_PASSWORD="gmail-app-password-16-chars"
+  EMAIL_FROM="admin@yourdomain.com"
+  ```
+
+**Step 3: Order Confirmation Emails (Nodemailer)**
+- Package: `npm install nodemailer`
+- Jab client order place kare → auto email jaye:
+  - Client ko: "Thank you for your order! We'll contact you soon."
+  - Admin ko: New order notification
+
+**Step 4: Vercel Environment Variables**
+In sab ko Vercel Dashboard → Project → Settings → Environment Variables mein bhi add karo:
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`  
+- `AUTH_SECRET`
+- `ADMIN_EMAIL`
+- `EMAIL_USER`
+- `EMAIL_APP_PASSWORD`
+- `EMAIL_FROM`
+
+**Step 5: Custom Domain on Vercel**
+- Vercel Dashboard → Project → Settings → Domains
+- `yourdomain.com` add karo
+- Cloudflare mein CNAME record add karo: `76.76.21.21` (Vercel IP)
+- SSL auto-configure hoga

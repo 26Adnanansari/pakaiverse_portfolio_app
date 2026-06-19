@@ -52,8 +52,8 @@ function Thumb({
 }) {
   const [err, setErr] = useState(false);
   if (src && !err) {
-    // eslint-disable-next-line @next/next/no-img-element
     return (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
         alt={alt}

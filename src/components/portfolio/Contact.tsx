@@ -13,10 +13,36 @@ export default function Contact() {
     message: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const text = `Hi Adnan! 👋\n\nName: ${formData.name}\nEmail: ${formData.email}\nProject Type: ${formData.type}\n\nMessage: ${formData.message}`;
-    window.open(waLink(text), "_blank");
+    setIsSubmitting(true);
+    
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      
+      const data = await res.json();
+      
+      if (data.success && data.whatsappUrl) {
+        window.open(data.whatsappUrl, "_blank");
+      } else {
+        // Fallback if API fails
+        const text = `Hi Adnan! 👋\n\nName: ${formData.name}\nEmail: ${formData.email}\nProject Type: ${formData.type}\n\nMessage: ${formData.message}`;
+        window.open(waLink(text), "_blank");
+      }
+    } catch (error) {
+      console.error(error);
+      const text = `Hi Adnan! 👋\n\nName: ${formData.name}\nEmail: ${formData.email}\nProject Type: ${formData.type}\n\nMessage: ${formData.message}`;
+      window.open(waLink(text), "_blank");
+    } finally {
+      setIsSubmitting(false);
+      setFormData({ name: "", email: "", type: "Web Application", message: "" });
+    }
   };
 
   return (
@@ -150,9 +176,10 @@ export default function Contact() {
 
               <button
                 type="submit"
-                className="mt-2 w-full rounded-xl bg-brand-primary px-6 py-4 font-bold text-black transition hover:bg-brand-primary/90 active:scale-[0.98]"
+                disabled={isSubmitting}
+                className="mt-2 w-full rounded-xl bg-brand-primary px-6 py-4 font-bold text-black transition hover:bg-brand-primary/90 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                Send Message via WhatsApp
+                {isSubmitting ? "Processing..." : "Send Message via WhatsApp"}
               </button>
             </form>
           </motion.div>
