@@ -29,11 +29,37 @@
 
 ---
 
-## 🚀 To-Do List (Pending Tasks)
-- [ ] **Automate AI Updates (Cron Job):** Configure `vercel.json` or a GitHub Action to trigger the news-fetching API route every few hours automatically.
-- [ ] **SEO & Metadata:** Add standard meta titles, OpenGraph images, favicon, `sitemap.xml`, and `robots.txt` to rank the portfolio on Google.
-- [ ] **Database Leads (Optional):** Save contact form submissions into a PostgreSQL `leads` table in addition to the WhatsApp redirect.
-- [ ] **Custom Domain (Optional):** Connect a `.com` domain to the Vercel deployment if desired.
+## 🚀 To-Do List & Action Plan (Zero Cost Features)
+
+Aapki batayi gayi list ke mutabiq, yeh sab features abhi **pending (Not Implemented)** hain. Hum inko step-by-step implement karke yahan tick karte jayenge:
+
+- [ ] **1. Vercel Cron via GitHub Actions:** 
+  - *Goal:* Free auto-trigger for `/api/news/fetch` every 6 hours.
+  - *Method:* Create `.github/workflows/daily-news.yml` to ping the API using curl.
+
+- [ ] **2. SEO Meta Tags Generator:** 
+  - *Goal:* Improve Google ranking and social sharing.
+  - *Method:* Add comprehensive `metadata` object in `src/app/layout.tsx` (OpenGraph, Twitter cards, keywords).
+
+- [ ] **3. Auto-Generate Sitemap & Robots:** 
+  - *Goal:* Help search engines index pages and news dynamically.
+  - *Method:* Create `src/app/sitemap.ts` and `src/app/robots.ts`.
+
+- [ ] **4. Guest Post Marketplace (Static Page):** 
+  - *Goal:* Sell GBOB services directly from the site.
+  - *Method:* Create `/guest-posts` route with pricing tiers (Starter, Pro, Premium) and WhatsApp CTA buttons.
+
+- [ ] **5. Lead Capture to Database (Drizzle + Neon):** 
+  - *Goal:* Save contact form queries in DB.
+  - *Method:* Add `leads` table in `src/db/schema.ts` with fields (name, email, phone, budget, etc.).
+
+- [ ] **6. Contact Form API (DB + WhatsApp):** 
+  - *Goal:* Dual action — save lead to DB AND redirect to WhatsApp.
+  - *Method:* Create `/api/contact/route.ts` to handle form POST requests.
+
+- [ ] **7. Free News Formatter (No AI API Cost):** 
+  - *Goal:* Auto-categorize and extract tags from RSS feeds without paying for OpenAI API.
+  - *Method:* Update `src/lib/news/formatters.ts` with keyword matching for NVIDIA, OpenAI, LLM, etc.
 
 ---
 
