@@ -13,12 +13,12 @@ export default function Footer() {
           {/* Brand Column */}
           <div className="col-span-2 lg:col-span-2 flex flex-col items-start gap-6">
             <Link href="/" className="hover:opacity-80 transition flex items-center gap-3">
-              <div className="relative h-12 w-12 overflow-hidden rounded-md">
+              <div className="relative h-12 w-40 overflow-hidden rounded-md">
                 <Image 
-                  src="/projects/pakaiverse-logo-square.png" 
+                  src="/projects/Main-logo.png" 
                   alt="PakAiVerse Logo" 
                   fill 
-                  className="object-cover"
+                  className="object-contain object-left"
                 />
               </div>
               <span className="font-display text-2xl font-bold tracking-tight text-white">

@@ -36,12 +36,12 @@ export default function Navbar() {
           href="/"
           className="flex items-center gap-3 hover:opacity-80 transition"
         >
-          <div className="relative h-12 w-12 overflow-hidden rounded-md">
+          <div className="relative h-12 w-40 overflow-hidden rounded-md">
             <Image 
-              src="/projects/pakaiverse-logo-square.png" 
+              src="/projects/Main-logo.png" 
               alt="PakAiVerse Logo" 
               fill 
-              className="object-cover"
+              className="object-contain object-left"
             />
           </div>
           <span className="font-display text-2xl font-bold tracking-tight text-white hidden sm:block">
