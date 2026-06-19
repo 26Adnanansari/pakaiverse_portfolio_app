@@ -79,6 +79,8 @@ export default function Footer() {
             <p className="flex items-center gap-2">Founder & CEO: Adnan Ansari</p>
             <p className="hidden md:block">|</p>
             <a href={`mailto:${PORTFOLIO.email}`} className="hover:text-white transition">{PORTFOLIO.email}</a>
+            <p className="hidden md:block">|</p>
+            <Link href="/admin/login" className="hover:text-brand-primary transition">Admin Login</Link>
           </div>
         </div>
       </div>

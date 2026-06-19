@@ -185,43 +185,8 @@ Each page has:
 
 ### Goal: `admin@yourdomain.com` → Gmail inbox (FREE via Cloudflare Email Routing)
 
-**Step 1: Cloudflare Email Routing Setup**
-- Cloudflare Dashboard → apna domain select karo
-- Left menu: `Email` → `Email Routing` → `Enable Email Routing`
-- `Add address`: `admin@yourdomain.com` → Forward to: apni Gmail
-- Cloudflare automatically DNS records add kar dega (MX + SPF)
-- Verify karo apni Gmail se
-
-**Step 2: Gmail me "Send As" Setup (Outgoing Mail)**
-Taake aap Gmail se reply karte waqt `admin@yourdomain.com` show ho:
-- Gmail Settings → Accounts → `Add another email address`
-- SMTP Server: `smtp.gmail.com` Port: `587`
-- Gmail mein App Password use karo (2FA on karo → App passwords)
-- `.env.local` mein add karo:
-  ```
-  EMAIL_USER="apni.gmail@gmail.com"
-  EMAIL_APP_PASSWORD="gmail-app-password-16-chars"
-  EMAIL_FROM="admin@yourdomain.com"
-  ```
-
-**Step 3: Order Confirmation Emails (Nodemailer)**
-- Package: `npm install nodemailer`
-- Jab client order place kare → auto email jaye:
-  - Client ko: "Thank you for your order! We'll contact you soon."
-  - Admin ko: New order notification
-
-**Step 4: Vercel Environment Variables**
-In sab ko Vercel Dashboard → Project → Settings → Environment Variables mein bhi add karo:
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`  
-- `AUTH_SECRET`
-- `ADMIN_EMAIL`
-- `EMAIL_USER`
-- `EMAIL_APP_PASSWORD`
-- `EMAIL_FROM`
-
-**Step 5: Custom Domain on Vercel**
-- Vercel Dashboard → Project → Settings → Domains
-- `yourdomain.com` add karo
-- Cloudflare mein CNAME record add karo: `76.76.21.21` (Vercel IP)
-- SSL auto-configure hoga
+- [x] **Step 1: Cloudflare Email Routing Setup**
+- [x] **Step 2: Gmail me "Send As" Setup (Outgoing Mail)**
+- [x] **Step 3: Nodemailer Setup (Password Reset Email)**
+- [x] **Step 4: Vercel Environment Variables**
+- [x] **Step 5: Custom Domain on Vercel**
