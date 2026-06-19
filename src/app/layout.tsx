@@ -31,8 +31,44 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: `${PORTFOLIO.name} | ${PORTFOLIO.title}`,
-  description: PORTFOLIO.tagline,
+  metadataBase: new URL("https://pakaiverse-portfolio-app.vercel.app"),
+  title: {
+    default: "PakAiVerse | AI-Powered Development Agency",
+    template: "%s | PakAiVerse",
+  },
+  description: "PakAiVerse builds scalable web apps, SaaS platforms, and AI integrations. Guest posting and SEO services for tech businesses.",
+  keywords: ["AI development", "Next.js agency", "guest posting", "SaaS development", "Pakistan tech agency", "Web Development"],
+  authors: [{ name: "Adnan Ansari" }],
+  creator: "PakAiVerse",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://pakaiverse-portfolio-app.vercel.app",
+    siteName: "PakAiVerse",
+    images: [{
+      url: "/projects/Main-logo.png",
+      width: 1200,
+      height: 630,
+      alt: "PakAiVerse - AI Development Agency",
+    }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "PakAiVerse | AI-Powered Development Agency",
+    description: "Build scalable web apps with autonomous AI agents",
+    creator: "@pakaiverse",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export default function RootLayout({

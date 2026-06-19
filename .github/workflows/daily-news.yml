@@ -1,0 +1,15 @@
+name: Daily AI News Fetch
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Runs every 6 hours
+  workflow_dispatch:  # Allows manual triggering from GitHub UI
+
+jobs:
+  fetch-news:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger News API
+        run: |
+          curl -X GET \
+            "https://pakaiverse-portfolio-app.vercel.app/api/cron/ai-updates?secret=${{ secrets.CRON_SECRET }}"

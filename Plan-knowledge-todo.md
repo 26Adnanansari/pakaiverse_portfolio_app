@@ -33,11 +33,11 @@
 
 Aapki batayi gayi list ke mutabiq, yeh sab features abhi **pending (Not Implemented)** hain. Hum inko step-by-step implement karke yahan tick karte jayenge:
 
-- [ ] **1. Vercel Cron via GitHub Actions:** 
+- [x] **1. Vercel Cron via GitHub Actions:** 
   - *Goal:* Free auto-trigger for `/api/news/fetch` every 6 hours.
   - *Method:* Create `.github/workflows/daily-news.yml` to ping the API using curl.
 
-- [ ] **2. SEO Meta Tags Generator:** 
+- [x] **2. SEO Meta Tags Generator:** 
   - *Goal:* Improve Google ranking and social sharing.
   - *Method:* Add comprehensive `metadata` object in `src/app/layout.tsx` (OpenGraph, Twitter cards, keywords).
 
