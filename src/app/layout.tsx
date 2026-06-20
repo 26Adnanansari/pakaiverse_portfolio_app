@@ -30,7 +30,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://pakaiverse-portfolio-app.vercel.app"),
+  metadataBase: new URL("https://www.pakaiverse.com"),
   title: {
     default: "PakAiVerse | AI-Powered Development Agency",
     template: "%s | PakAiVerse",
