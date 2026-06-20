@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, varchar, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, varchar, serial, boolean } from "drizzle-orm/pg-core";
 
 export const articles = pgTable("articles", {
   id: varchar("id", { length: 255 }).primaryKey(),
@@ -40,4 +40,16 @@ export const guest_post_orders = pgTable("guest_post_orders", {
   startDate: timestamp("start_date"),
   expireDate: timestamp("expire_date"),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const blogs = pgTable("blogs", {
+  id: serial("id").primaryKey(),
+  slug: varchar("slug", { length: 255 }).notNull().unique(),
+  title: text("title").notNull(),
+  coverImage: text("cover_image"),
+  content: text("content"),
+  published: boolean("published").default(false),
+  author: varchar("author", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
