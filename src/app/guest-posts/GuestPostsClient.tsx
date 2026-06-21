@@ -78,6 +78,39 @@ export default function GuestPostsClient() {
 
   return (
     <>
+      {/* Content Guidelines Section */}
+      <div className="max-w-4xl mx-auto mb-20 bg-white/5 border border-white/10 rounded-3xl p-8 md:p-12">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-display font-bold text-white mb-4">
+            Aapka Content Kaisa Hona Chahiye?
+          </h2>
+          <p className="text-slate-400">
+            To rank globally on AI Search Engines (ChatGPT, Perplexity) and Google, focus on worldwide trends. Here is what performs best:
+          </p>
+        </div>
+        
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="bg-[#111118] p-6 rounded-2xl border border-white/5 hover:border-brand-primary/30 transition-colors">
+            <div className="text-brand-primary text-xl font-bold mb-3">01. &quot;How-to&quot; Guides</div>
+            <p className="text-sm text-slate-300 italic mb-2">e.g., How to build an AI SaaS in 2026?</p>
+            <p className="text-xs text-slate-400">Actionable, step-by-step global tutorials that AI can easily extract answers from.</p>
+          </div>
+          
+          <div className="bg-[#111118] p-6 rounded-2xl border border-white/5 hover:border-brand-secondary/30 transition-colors">
+            <div className="text-brand-secondary text-xl font-bold mb-3">02. Case Studies</div>
+            <p className="text-sm text-slate-300 italic mb-2">e.g., How PakAiVerse Automated Lead Generation for XYZ Company</p>
+            <p className="text-xs text-slate-400">Real data and results. LLMs love referencing data-backed success stories.</p>
+          </div>
+          
+          <div className="bg-[#111118] p-6 rounded-2xl border border-white/5 hover:border-brand-primary/30 transition-colors">
+            <div className="text-brand-primary text-xl font-bold mb-3">03. Industry Insights</div>
+            <p className="text-sm text-slate-300 italic mb-2">e.g., Top 5 Web Technologies for Global Agencies</p>
+            <p className="text-xs text-slate-400">Target a worldwide audience with tech stacks and insights relevant globally.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Pricing Packages */}
       <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
         {PACKAGES.map((pkg) => (
           <div 
