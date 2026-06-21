@@ -36,46 +36,10 @@ function timeAgo(dateStr: string): string {
   return "Just now";
 }
 
-// Reusable image with error fallback
-function Thumb({
-  src,
-  alt,
-  className,
-  icon,
-  color,
-}: {
-  src: string | null;
-  alt: string;
-  className?: string;
-  icon: string;
-  color: string;
-}) {
-  const [err, setErr] = useState(false);
-  if (src && !err) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={src}
-        alt={alt}
-        className={className}
-        onError={() => setErr(true)}
-        loading="lazy"
-      />
-    );
-  }
-  return (
-    <div
-      className={`${className} flex items-center justify-center`}
-      style={{ background: `linear-gradient(135deg, ${color}20, #0A0A0F 80%)` }}
-    >
-      <span className="text-4xl opacity-25">{icon}</span>
-    </div>
-  );
-}
+// Thumb component removed
 
 // ── HERO CARD ─────────────────────────────────────────────────
 function HeroCard({ post }: { post: Post }) {
-  const [imgErr, setImgErr] = useState(false);
   return (
     <a
       href={post.url}
@@ -93,32 +57,9 @@ function HeroCard({ post }: { post: Post }) {
           style={{ background: `linear-gradient(90deg, ${post.config.color}, ${post.config.color}60, transparent)` }}
         />
 
-        <div className="sm:grid sm:grid-cols-5">
-          {/* Image — 3/5 width on desktop */}
-          <div className="sm:col-span-3 relative overflow-hidden h-52 sm:h-72">
-            {post.imageUrl && !imgErr ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={post.imageUrl}
-                alt={post.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                onError={() => setImgErr(true)}
-              />
-            ) : (
-              <div
-                className="w-full h-full flex items-center justify-center"
-                style={{
-                  background: `linear-gradient(135deg, ${post.config.color}25 0%, #0A0A0F 60%, ${post.config.color}08 100%)`,
-                }}
-              >
-                <span className="text-9xl opacity-15">{post.config.icon}</span>
-              </div>
-            )}
-            {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D14] via-[#0D0D14]/20 to-transparent sm:bg-gradient-to-r sm:from-transparent sm:to-[#0D0D14]/60" />
-
-            {/* Badges on image */}
-            <div className="absolute top-3 left-3 flex gap-2">
+        <div className="p-6 sm:p-8 flex flex-col justify-between">
+          <div>
+            <div className="flex gap-2 mb-4">
               <span
                 className="px-2.5 py-1 rounded-full text-[11px] font-bold backdrop-blur-md border"
                 style={{
@@ -129,40 +70,32 @@ function HeroCard({ post }: { post: Post }) {
               >
                 {post.config.icon} {post.config.label}
               </span>
-            </div>
-            <div className="absolute top-3 right-3">
-              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-black/40 text-white backdrop-blur-md border border-white/15">
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-white/5 text-white backdrop-blur-md border border-white/10">
                 ⭐ Featured
               </span>
             </div>
+            <h2 className="text-xl sm:text-3xl font-bold text-white leading-tight mb-4 group-hover:text-brand-primary transition-colors duration-200">
+              {post.title}
+            </h2>
+            <p className="text-base text-slate-400 leading-relaxed max-w-4xl">
+              {post.description}
+            </p>
           </div>
 
-          {/* Content — 2/5 width */}
-          <div className="sm:col-span-2 p-5 sm:p-7 flex flex-col justify-between">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight mb-3 group-hover:text-brand-primary transition-colors duration-200">
-                {post.title}
-              </h2>
-              <p className="text-sm text-slate-400 leading-relaxed line-clamp-4">
-                {post.description}
-              </p>
-            </div>
-
-            <div className="mt-5 pt-4 border-t border-white/[0.07] flex items-center justify-between">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-xs font-medium text-slate-300">{post.source}</span>
-                <span className="text-[11px] text-slate-600 flex items-center gap-1">
-                  <Clock className="w-3 h-3" /> {timeAgo(post.publishedAt)}
-                  {post.author && <> · {post.author}</>}
-                </span>
-              </div>
-              <span
-                className="flex items-center gap-1.5 text-sm font-semibold transition-transform duration-200 group-hover:translate-x-0.5"
-                style={{ color: post.config.color }}
-              >
-                Read <ExternalLink className="w-3.5 h-3.5" />
+          <div className="mt-6 pt-5 border-t border-white/[0.07] flex items-center justify-between">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-medium text-slate-300">{post.source}</span>
+              <span className="text-xs text-slate-600 flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" /> {timeAgo(post.publishedAt)}
+                {post.author && <> · {post.author}</>}
               </span>
             </div>
+            <span
+              className="flex items-center gap-1.5 text-sm font-semibold transition-transform duration-200 group-hover:translate-x-0.5"
+              style={{ color: post.config.color }}
+            >
+              Read Full Update <ExternalLink className="w-4 h-4" />
+            </span>
           </div>
         </div>
       </div>
@@ -184,17 +117,6 @@ function NewsListItem({ post, index }: { post: Post; index: number }) {
         rel="noopener noreferrer"
         className="group flex items-start gap-4 py-4 px-4 rounded-xl hover:bg-white/[0.03] transition-all duration-200 border-b border-white/[0.05] last:border-0"
       >
-        {/* Thumbnail */}
-        <div className="flex-shrink-0 w-28 h-[72px] sm:w-36 sm:h-24 rounded-xl overflow-hidden">
-          <Thumb
-            src={post.imageUrl}
-            alt={post.title}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-            icon={post.config.icon}
-            color={post.config.color}
-          />
-        </div>
-
         {/* Content */}
         <div className="flex-grow min-w-0">
           {/* Category + time */}
@@ -255,25 +177,15 @@ function NewsGridCard({ post, index }: { post: Post; index: number }) {
             style={{ background: `linear-gradient(90deg, ${post.config.color}, transparent)` }}
           />
 
-          {/* Image */}
-          <div className="relative overflow-hidden h-44">
-            <Thumb
-              src={post.imageUrl}
-              alt={post.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              icon={post.config.icon}
-              color={post.config.color}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-            <span
-              className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-sm"
-              style={{ backgroundColor: `${post.config.color}30`, color: post.config.color }}
-            >
-              {post.config.icon} {post.config.label}
-            </span>
-          </div>
-
-          <div className="p-4 flex flex-col flex-grow">
+          <div className="p-5 flex flex-col flex-grow relative">
+            <div className="mb-3">
+              <span
+                className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-sm"
+                style={{ backgroundColor: `${post.config.color}20`, color: post.config.color }}
+              >
+                {post.config.icon} {post.config.label}
+              </span>
+            </div>
             <h3 className="text-sm font-bold text-white mb-2 line-clamp-2 leading-snug group-hover:text-brand-primary transition-colors flex-grow">
               {post.title}
             </h3>

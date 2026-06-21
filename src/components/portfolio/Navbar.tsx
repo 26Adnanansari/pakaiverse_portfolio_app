@@ -13,7 +13,7 @@ const LINKS = [
   { label: "AI Updates", href: "/ai-updates" },
   { label: "Guest Posts", href: "/guest-posts" },
   { label: "Process", href: "/#process" },
-  { label: "Contact", href: "/#contact" },
+  { label: "Client Portal", href: "/client/dashboard" },
 ];
 
 export default function Navbar() {

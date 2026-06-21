@@ -11,6 +11,7 @@ type Order = {
   websiteUrl: string;
   targetKeyword: string;
   paymentStatus: string | null;
+  paymentProofUrl: string | null;
   orderStatus: string | null;
   startDate: string | null;
   expireDate: string | null;
@@ -74,12 +75,19 @@ export default function AdminDashboardClient({ orders: initialOrders }: { orders
                   value={order.paymentStatus || "Unpaid"}
                   onChange={(e) => handleStatusChange(order.id, "paymentStatus", e.target.value)}
                   disabled={updating === order.id}
-                  className={`bg-white/10 border border-white/10 rounded px-2 py-1 outline-none text-xs ${order.paymentStatus === 'Paid' ? 'text-green-400' : 'text-red-400'}`}
+                  className={`bg-white/10 border border-white/10 rounded px-2 py-1 outline-none text-xs w-full mb-2 ${order.paymentStatus === 'Paid' ? 'text-green-400' : order.paymentStatus === 'Under Review' ? 'text-yellow-400' : 'text-red-400'}`}
                 >
                   <option value="Unpaid">Unpaid</option>
+                  <option value="Under Review">Under Review</option>
                   <option value="Paid">Paid</option>
                   <option value="Refunded">Refunded</option>
                 </select>
+                {order.paymentProofUrl && (
+                  <a href={order.paymentProofUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-primary hover:underline flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                    View Proof
+                  </a>
+                )}
               </td>
               <td className="px-4 py-4">
                 <select 

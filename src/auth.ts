@@ -37,15 +37,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   session: { strategy: "jwt" },
   callbacks: {
-    async signIn({ user, account }) {
-      // Google OAuth — only allow admin email
-      if (account?.provider === "google") {
-        return user.email === ADMIN_EMAIL;
-      }
-      // Credentials — already validated in authorize()
-      return true;
+    async signIn() {
+      return true; // Allow all google signins (clients and admin)
     },
-    async session({ session }) {
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.sub || "";
+      }
       return session;
     },
   },

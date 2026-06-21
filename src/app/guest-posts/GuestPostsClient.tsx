@@ -61,10 +61,8 @@ export default function GuestPostsClient() {
       });
       const data = await res.json();
       
-      if (data.success && data.whatsappUrl) {
-        window.open(data.whatsappUrl, "_blank");
-        setSelectedPackage(null); // close modal on success
-        setFormData({ clientName: "", email: "", phone: "", websiteUrl: "", targetKeyword: "" });
+      if (data.success && data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
       } else {
         alert("Something went wrong. Please try again.");
       }
@@ -78,11 +76,46 @@ export default function GuestPostsClient() {
 
   return (
     <>
+      {/* Why Publish With Us? (Benefits) */}
+      <div className="max-w-6xl mx-auto mb-20">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-display font-bold text-white mb-4">
+            Why Publish on PakAiVerse?
+          </h2>
+          <p className="text-slate-400 max-w-2xl mx-auto">
+            Get more than just a backlink. Our platform is optimized for the next generation of search engines, driving real authority to your digital assets.
+          </p>
+        </div>
+        
+        <div className="grid md:grid-cols-4 gap-6">
+          <div className="bg-brand-primary/5 p-6 rounded-2xl border border-brand-primary/10">
+            <div className="text-2xl mb-4">🚀</div>
+            <h3 className="text-lg font-bold text-white mb-2">SEO & AIO Rankings</h3>
+            <p className="text-sm text-slate-400">Rank higher on Google and be cited by AI engines like ChatGPT and Perplexity.</p>
+          </div>
+          <div className="bg-white/5 p-6 rounded-2xl border border-white/10">
+            <div className="text-2xl mb-4">📱</div>
+            <h3 className="text-lg font-bold text-white mb-2">App Store Authority</h3>
+            <p className="text-sm text-slate-400">Drive high-quality contextual links to your Play Store or App Store pages.</p>
+          </div>
+          <div className="bg-white/5 p-6 rounded-2xl border border-white/10">
+            <div className="text-2xl mb-4">🎥</div>
+            <h3 className="text-lg font-bold text-white mb-2">YouTube Growth</h3>
+            <p className="text-sm text-slate-400">Embed your videos to increase watch time and rank videos in Google Search.</p>
+          </div>
+          <div className="bg-white/5 p-6 rounded-2xl border border-white/10">
+            <div className="text-2xl mb-4">🏢</div>
+            <h3 className="text-lg font-bold text-white mb-2">Brand PR</h3>
+            <p className="text-sm text-slate-400">Build entity authority for your founders, brand names, or local business profiles.</p>
+          </div>
+        </div>
+      </div>
+
       {/* Content Guidelines Section */}
-      <div className="max-w-4xl mx-auto mb-20 bg-white/5 border border-white/10 rounded-3xl p-8 md:p-12">
+      <div className="max-w-4xl mx-auto mb-24 bg-white/5 border border-white/10 rounded-3xl p-8 md:p-12">
         <div className="text-center mb-10">
           <h2 className="text-3xl font-display font-bold text-white mb-4">
-            Aapka Content Kaisa Hona Chahiye?
+            How to Craft AI-Optimized Content?
           </h2>
           <p className="text-slate-400">
             To rank globally on AI Search Engines (ChatGPT, Perplexity) and Google, focus on worldwide trends. Here is what performs best:
@@ -220,7 +253,7 @@ export default function GuestPostsClient() {
                   disabled={isSubmitting}
                   className="mt-4 w-full bg-brand-primary text-black font-bold py-3.5 rounded-xl transition hover:bg-brand-primary/90 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? "Processing..." : "Place Order via WhatsApp"}
+                  {isSubmitting ? "Processing..." : "Proceed to Checkout"}
                 </button>
               </form>
             </motion.div>

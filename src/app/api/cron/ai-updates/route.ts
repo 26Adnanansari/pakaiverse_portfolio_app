@@ -21,11 +21,11 @@ export async function GET(request: Request) {
     const articles = await fetchAllNews();
     console.log(`Fetched ${articles.length} articles`);
 
-    const oneDayAgo = new Date();
-    oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     
     const freshArticles = articles.filter(
-      (a) => new Date(a.publishedAt) > oneDayAgo
+      (a) => new Date(a.publishedAt) > oneWeekAgo
     );
 
     const savedCount = await saveArticlesToDb(freshArticles);

@@ -6,7 +6,7 @@ import Link from "next/link";
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
 
-  if (!session) {
+  if (!session || session.user?.email !== process.env.ADMIN_EMAIL) {
     redirect("/admin/login");
   }
 
@@ -31,6 +31,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link href="/admin" className="hover:text-white transition">Orders</Link>
             <Link href="/admin/leads" className="hover:text-white transition">Leads</Link>
             <Link href="/admin/blog" className="hover:text-white transition">Blog</Link>
+            <Link href="/admin/settings" className="hover:text-white transition">Settings</Link>
           </nav>
 
           {/* User info + Logout */}

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { guest_post_orders } from "@/db/schema";
-import { PORTFOLIO } from "@/config/portfolio";
+
 
 export async function POST(req: Request) {
   try {
@@ -17,24 +17,11 @@ export async function POST(req: Request) {
       targetKeyword: data.targetKeyword,
     }).returning();
     
-    // Generate WhatsApp redirect URL
-    const whatsappMsg = encodeURIComponent(
-      `*New Guest Post Order! 🚀*\n\n` +
-      `*Package:* ${data.packageName}\n` +
-      `*Name:* ${data.clientName}\n` +
-      `*Email:* ${data.email}\n` +
-      `*Phone:* ${data.phone}\n` +
-      `*Website:* ${data.websiteUrl}\n` +
-      `*Keyword:* ${data.targetKeyword}\n\n` +
-      `Please provide the payment details to start the project.`
-    );
-    
-    const waNumber = PORTFOLIO.whatsapp.replace(/[^0-9]/g, "");
-    
+    // Return redirect to checkout page
     return NextResponse.json({
       success: true,
       orderId: newOrder[0].id,
-      whatsappUrl: `https://wa.me/${waNumber}?text=${whatsappMsg}`,
+      checkoutUrl: `/checkout/${newOrder[0].id}`,
     });
   } catch (error) {
     console.error("Failed to save order:", error);

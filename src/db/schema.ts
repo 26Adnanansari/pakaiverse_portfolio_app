@@ -29,6 +29,7 @@ export const leads = pgTable("leads", {
 
 export const guest_post_orders = pgTable("guest_post_orders", {
   id: serial("id").primaryKey(),
+  userEmail: varchar("user_email", { length: 255 }),
   clientName: varchar("client_name", { length: 255 }).notNull(),
   email: varchar("email", { length: 255 }).notNull(),
   phone: varchar("phone", { length: 50 }).notNull(),
@@ -36,6 +37,7 @@ export const guest_post_orders = pgTable("guest_post_orders", {
   websiteUrl: varchar("website_url", { length: 255 }).notNull(),
   targetKeyword: varchar("target_keyword", { length: 255 }).notNull(),
   paymentStatus: varchar("payment_status", { length: 50 }).default("Unpaid"),
+  paymentProofUrl: text("payment_proof_url"),
   orderStatus: varchar("order_status", { length: 50 }).default("Pending"),
   startDate: timestamp("start_date"),
   expireDate: timestamp("expire_date"),
@@ -53,3 +55,19 @@ export const blogs = pgTable("blogs", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+export const settings = pgTable("settings", {
+  id: varchar("id", { length: 255 }).primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const funnels = pgTable("funnels", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 255 }).notNull(),
+  name: varchar("name", { length: 255 }),
+  stepCompleted: varchar("step_completed", { length: 50 }).default("opt_in"),
+  source: varchar("source", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
