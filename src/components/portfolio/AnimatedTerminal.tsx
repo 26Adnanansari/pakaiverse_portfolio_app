@@ -11,7 +11,7 @@ const LOGS = [
   { text: "$ Deploying ProTax US...", type: "cmd", delay: 3.5 },
   { text: "✓ usta-xweb.vercel.app — Live", type: "success", delay: 4.2 },
   { text: "$ Deploying Zamzam Press...", type: "cmd", delay: 5.0 },
-  { text: "✓ zamzam-prress-app.vercel.app — Live", type: "success", delay: 5.7 },
+  { text: "✓ zamzampress.pakaiverse.com — Live", type: "success", delay: 5.7 },
 ];
 
 export default function AnimatedTerminal() {

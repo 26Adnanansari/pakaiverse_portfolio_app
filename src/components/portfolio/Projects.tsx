@@ -26,7 +26,7 @@ const PROJECTS = [
   },
   {
     name: "ZamZam Press",
-    url: "https://zamzam-prress-app.vercel.app",
+    url: "https://zamzampress.pakaiverse.com",
     desc: "B2B product catalog & order portal for paper bag manufacturer.",
     stack: ["Next.js", "Framer Motion", "Tailwind"],
     type: "B2B Catalog",
