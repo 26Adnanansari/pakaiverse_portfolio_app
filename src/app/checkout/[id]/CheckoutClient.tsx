@@ -99,7 +99,7 @@ export default function CheckoutClient({
             
             {!proofUrl ? (
               <CldUploadWidget 
-                uploadPreset="ml_default" // Will need to ensure Cloudinary config
+                uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ml_default"}
                 onSuccess={handleUploadSuccess}
               >
                 {({ open }) => {

@@ -65,9 +65,9 @@ export default function Footer() {
 
           <div className="flex flex-col gap-4">
             <h4 className="text-white font-semibold mb-2">Legal</h4>
-            {["Privacy Policy", "Terms of Service", "Cookie Policy"].map((item) => (
-              <Link key={item} href={`#${item.toLowerCase().replace(/\s+/g, '-')}`} className="text-sm text-slate-400 hover:text-brand-primary transition">{item}</Link>
-            ))}
+            <Link href="/privacy-policy" className="text-sm text-slate-400 hover:text-brand-primary transition">Privacy Policy</Link>
+            <Link href="/terms-of-service" className="text-sm text-slate-400 hover:text-brand-primary transition">Terms of Service</Link>
+            <Link href="/guest-posts" className="text-sm text-slate-400 hover:text-brand-primary transition">Guest Posts</Link>
           </div>
 
         </div>

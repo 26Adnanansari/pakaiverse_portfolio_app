@@ -4,7 +4,7 @@ import { blogs } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = "https://www.pakaiverse.com";
+  const baseUrl = "https://pakaiverse.com";
 
   // Fetch all published blogs
   const publishedBlogs = await db.select().from(blogs).where(eq(blogs.published, true));
@@ -40,6 +40,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/privacy-policy`,
+      lastModified: new Date(),
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${baseUrl}/terms-of-service`,
+      lastModified: new Date(),
+      changeFrequency: "yearly",
+      priority: 0.3,
     },
     ...blogUrls,
   ];

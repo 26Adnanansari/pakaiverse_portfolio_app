@@ -30,7 +30,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.pakaiverse.com"),
+  metadataBase: new URL("https://pakaiverse.com"),
   title: {
     default: "PakAiVerse | AI-Powered Development Agency",
     template: "%s | PakAiVerse",
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://pakaiverse-portfolio-app.vercel.app",
+    url: "https://pakaiverse.com",
     siteName: "PakAiVerse",
     images: [{
       url: "/projects/Main-logo.png",
