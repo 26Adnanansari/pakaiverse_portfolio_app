@@ -50,6 +50,9 @@ export default function Hero() {
             className="text-lg sm:text-xl text-slate-400 max-w-lg"
           >
             {PORTFOLIO.name} is a full-stack development agency specializing in high-performance web applications, SaaS platforms, and AI-powered solutions.
+            <span className="block mt-4 text-sm text-slate-500 border-l-2 border-brand-primary/50 pl-4 py-1">
+              <strong>Client Portal:</strong> We use Google Sign-In to securely give you access to track your orders, upload payment proofs, and manage your active projects seamlessly.
+            </span>
           </motion.p>
 
           <motion.div 

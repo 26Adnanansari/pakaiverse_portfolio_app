@@ -144,7 +144,7 @@ export default function TermsOfServicePage() {
           </section>
 
           <div className="mt-10 pt-8 border-t border-white/10 flex flex-wrap gap-6 text-sm text-slate-400">
-            <Link href="/privacy-policy" className="text-brand-primary hover:underline">← Privacy Policy</Link>
+            <Link href="/privacy" className="text-brand-primary hover:underline">← Privacy Policy</Link>
             <Link href="/guest-posts" className="hover:text-white transition">View Guest Post Packages</Link>
             <Link href="/" className="hover:text-white transition">Back to Home</Link>
           </div>
