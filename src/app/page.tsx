@@ -1,5 +1,6 @@
 import Navbar from "@/components/portfolio/Navbar";
 import Hero from "@/components/portfolio/Hero";
+import GoogleSignInInfo from "@/components/portfolio/GoogleSignInInfo";
 import Projects from "@/components/portfolio/Projects";
 import FeaturedSaaS from "@/components/portfolio/FeaturedSaaS";
 import BentoServices from "@/components/portfolio/BentoServices";
@@ -16,6 +17,7 @@ export default function Home() {
       <Navbar />
       <main>
         <Hero />
+        <GoogleSignInInfo />
         <FeaturedSaaS />
         <Projects />
         <BentoServices />
