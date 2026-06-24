@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import { saveBlog } from "../actions";
+import { Sparkles } from "lucide-react";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default function BlogEditorClient({ initialData, authorName }: { initialData: any, authorName: string }) {
@@ -14,6 +15,36 @@ export default function BlogEditorClient({ initialData, authorName }: { initialD
   const [content, setContent] = useState(initialData?.content || "");
   const [published, setPublished] = useState(initialData?.published || false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleAIGenerate = async () => {
+    if (!title) {
+      alert("Please enter a title first to generate content.");
+      return;
+    }
+    
+    setIsGenerating(true);
+    try {
+      const res = await fetch("/api/admin/ai-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.content) {
+        setContent(data.content);
+      } else {
+        alert("Failed to generate: " + (data.error || "Unknown error"));
+      }
+    } catch (error) {
+      alert("Error calling AI service.");
+      console.error(error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   // Auto-generate slug from title if it's a new post
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,7 +84,18 @@ export default function BlogEditorClient({ initialData, authorName }: { initialD
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-300">Title</label>
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-slate-300">Title</label>
+            <button
+              type="button"
+              onClick={handleAIGenerate}
+              disabled={isGenerating || !title}
+              className="flex items-center gap-1.5 text-xs font-semibold text-brand-primary hover:text-white transition-colors disabled:opacity-50"
+            >
+              <Sparkles size={14} />
+              {isGenerating ? "Generating..." : "Write with AI"}
+            </button>
+          </div>
           <input 
             type="text" 
             value={title}
