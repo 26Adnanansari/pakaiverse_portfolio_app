@@ -10,6 +10,7 @@ import FunnelSection from "@/components/portfolio/FunnelSection";
 import Contact from "@/components/portfolio/Contact";
 import Footer from "@/components/portfolio/Footer";
 import FloatingCTA from "@/components/portfolio/FloatingCTA";
+import ChatBot from "@/components/portfolio/ChatBot";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { desc } from "drizzle-orm";
@@ -35,6 +36,7 @@ export default async function Home() {
       </main>
       <Footer />
       <FloatingCTA />
+      <ChatBot />
     </>
   );
 }
