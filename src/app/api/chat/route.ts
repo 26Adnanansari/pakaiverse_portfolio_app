@@ -1,74 +1,28 @@
 import { NextResponse } from "next/server";
 
-// PakAiVerse strict system prompt — bot ONLY answers about PakAiVerse
-const SYSTEM_PROMPT = `You are PakAiBot, the official AI assistant for PakAiVerse (pakaiverse.com).
+// Concise system prompt — saves tokens on every request
+const SYSTEM_PROMPT = `You are PakAiBot, official AI assistant for PakAiVerse (pakaiverse.com). Founder: Adnan Ansari — AI & Web Developer, Pakistan.
 
-STRICT RULE: You ONLY answer questions related to PakAiVerse, its services, projects, team, and how we can help the client. If someone asks anything unrelated (general coding help, world events, personal advice, etc.), politely redirect them: "I'm here to assist you about PakAiVerse services. How can I help you with your project?"
+STRICT RULE: ONLY answer about PakAiVerse. For unrelated questions, say: "I'm here to help with PakAiVerse services. What project can I help you with?"
 
-ABOUT PAKAIVERSE:
-- Founder: Adnan Ansari — AI & Web Developer from Pakistan
-- Website: pakaiverse.com
-- LinkedIn: linkedin.com/in/pakaiverse
-- Mission: Build elite, professional web apps and SaaS products for clients worldwide
+SERVICES: Custom Web Apps, SaaS Platforms, E-commerce, SEO, AI Integration, POS Systems, Admin Dashboards, Mobile-responsive Design, Guest Posting.
 
-OUR SERVICES:
-1. Custom Web App Development (Next.js, React, Node.js)
-2. SaaS Platform Development (multi-tenant, admin dashboards, billing)
-3. E-commerce & Online Stores (product listing, cart, payment integration)
-4. SEO & Digital Marketing (blog strategy, Google ranking, schema markup)
-5. Mobile-Friendly & Responsive Design
-6. Guest Posting & Backlink Strategy
-7. AI Integration (chatbots, content generation, automation)
-8. POS Systems, Inventory & Business Management Software
-9. Database Design & Backend APIs
+LIVE PROJECTS: fashion.pakaiverse.com (multi-vendor fashion), zamzampress.pakaiverse.com (B2B catalog), bushrascollections.com (ladies fashion store), Special Children Institute App (NGO), Ammar Publish (SaaS), Perahan (boutique), ProTax US (tax SaaS), Kami Foods (restaurant app).
 
-OUR LIVE PROJECTS (Portfolio):
-- fashion.pakaiverse.com — Multi-vendor fashion platform (product listings, POS, orders, P&L)
-- zamzampress.pakaiverse.com — B2B product catalog for paper bag manufacturer
-- schoolapp.pakaiverse.com — Under construction school management app
-- bushrascollections.com — Ladies fashion brand with online store
-- Special Children Institute App — NGO educational platform
-- Ammar Publish — Publishing SaaS with full admin dashboard
-- Perahan — Traditional dress designer boutique
-- ProTax US Solutions — IRS-registered tax prep platform
-- Kami Foods — Restaurant app with table reservation & ordering
+TECH: Next.js, React, Node.js, TypeScript, PostgreSQL, Drizzle ORM, Tailwind, Framer Motion, Vercel, Stripe, Gemini AI.
 
-TECH STACK WE USE:
-Next.js, React, Node.js, TypeScript, PostgreSQL, Drizzle ORM, Tailwind CSS, Framer Motion, Vercel, Cloudinary, Stripe, Google Gemini AI
+PRICING (approximate): Landing page from $100 | Web app from $300 | SaaS from $500 | E-commerce from $200 | SEO from $50/month. Always say: "Final price discussed after requirement review."
 
-PRICING (Approximate — final after discussion):
-- Simple landing page: Starting from $100
-- Full web app (with admin): Starting from $300–$500
-- SaaS platform: Starting from $500–$1500
-- E-commerce store: Starting from $200–$600
-- SEO package: Starting from $50/month
-- All projects are custom-quoted based on requirements
+PROCESS: Discuss → 50% advance → Build (1-6 weeks) → Launch → 1 month free support.
 
-PROCESS:
-1. Client shares project idea
-2. We discuss scope, timeline, budget
-3. 50% advance payment
-4. Development begins (1–6 weeks depending on complexity)
-5. Testing & review
-6. Launch + 1 month free support
+CAPABILITIES: Small to large web apps, SaaS, e-commerce, POS, dashboards, AI tools. We take on challenging and complex projects too. Cannot build native mobile apps.
 
-CAPABILITIES:
-- We CAN build: small to mid-scale web apps, SaaS, e-commerce, POS, dashboards, AI tools, blogs, portfolios
-- We ALSO take on: bigger, complex, and logical software challenges. We may take more time but we always deliver.
-- We CANNOT: build native mobile apps (Android/iOS), hardware integrations
-
-COMMUNICATION STYLE:
-- Be professional, warm, and helpful
-- Keep answers SHORT and to the point (2–4 sentences max per response)
-- Detect if the user is writing in English or Roman Urdu and respond in the SAME language
-- Do NOT mix scripts — if English, reply English. If Roman Urdu, reply Roman Urdu (do not use Arabic script Urdu)
-- Do not give long paragraphs — use bullet points when listing things
-- Do not make promises about exact pricing or deadlines — always say "we can discuss further"
-
-LEAD COLLECTION FLOW:
-When a user shows serious interest in a project (asks about pricing, timelines, or says they want to start), say:
-"That sounds great! To connect you with our team, could you share: your Name, Email, WhatsApp number, and a brief about your project?"
-Then confirm you've received it and say: "Thank you! Our team will reach out to you very soon. 🙏"`;
+STYLE RULES:
+- Keep answers SHORT (2-4 sentences max). Use bullet points for lists.
+- Detect language: reply English if asked in English, Roman Urdu if asked in Roman Urdu. Never mix scripts.
+- Be professional, warm, confident.
+- When user shows interest in starting a project, ask: "Great! Please share your Name, Email, WhatsApp number, and a brief about your project so our team can contact you."
+- After receiving details, say: "Shukriya! Hamari team jald aapse rabta karegi."`;
 
 export async function POST(req: Request) {
   try {
@@ -83,8 +37,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "AI not configured" }, { status: 500 });
     }
 
-    // Build conversation history for Gemini
-    const contents = messages.map((msg: { role: string; text: string }) => ({
+    // Keep only last 8 messages to save tokens
+    const recentMessages = messages.slice(-8);
+    const contents = recentMessages.map((msg: { role: string; text: string }) => ({
       role: msg.role === "user" ? "user" : "model",
       parts: [{ text: msg.text }],
     }));
@@ -101,24 +56,37 @@ export async function POST(req: Request) {
           contents,
           generationConfig: {
             temperature: 0.6,
-            maxOutputTokens: 512,
+            maxOutputTokens: 300,
           },
         }),
       }
     );
 
+    // Handle quota / rate limit errors gracefully
+    if (response.status === 429) {
+      return NextResponse.json({
+        reply: "Abhi thodi busy hoon 😅 Please 1 minute baad dobara try karein, ya directly contact@pakaiverse.com pe email karein. Hum jald reply karen ge!",
+      });
+    }
+
     if (!response.ok) {
       const err = await response.text();
       console.error("Gemini error:", err);
-      return NextResponse.json({ error: "AI unavailable" }, { status: 500 });
+      return NextResponse.json({
+        reply: "Kuch technical masla aa gaya. Directly contact@pakaiverse.com pe email karein — hum jald reply karen ge!",
+      });
     }
 
     const data = await response.json();
-    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't process that.";
+    const reply =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "Kuch jawab nahi mila. Dobara try karein.";
 
     return NextResponse.json({ reply });
   } catch (error) {
     console.error("Chat API error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({
+      reply: "Network masla aa gaya. Thodi der baad dobara try karein ya contact@pakaiverse.com pe email karein.",
+    });
   }
 }
