@@ -51,7 +51,8 @@ Return ONLY the HTML content, nothing else.`;
     if (!response.ok) {
       const err = await response.text();
       console.error("Gemini API error:", err);
-      return NextResponse.json({ error: "AI generation failed" }, { status: 500 });
+      // Return the actual error message for easier debugging
+      return NextResponse.json({ error: `AI generation failed: ${err.substring(0, 100)}` }, { status: 500 });
     }
 
     const data = await response.json();
