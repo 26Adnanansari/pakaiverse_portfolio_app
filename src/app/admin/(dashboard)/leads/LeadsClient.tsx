@@ -59,8 +59,22 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
               <td className="px-4 py-4 font-medium text-white">#{lead.id}</td>
               <td className="px-4 py-4">
                 <div className="font-bold text-white">{lead.name || "N/A"}</div>
-                <div className="text-xs text-slate-400">{lead.email}</div>
-                <div className="text-xs text-brand-primary">{lead.phone || "No Phone"}</div>
+                <div className="text-xs text-slate-400 mb-1">{lead.email}</div>
+                {lead.phone ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-brand-primary">{lead.phone}</span>
+                    <a 
+                      href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, '')}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 bg-green-500/10 text-green-500 hover:bg-green-500/20 px-2 py-0.5 rounded text-[10px] font-medium transition"
+                    >
+                      WhatsApp
+                    </a>
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-500">No Phone</div>
+                )}
               </td>
               <td className="px-4 py-4">
                 <div className="font-bold text-brand-secondary">{lead.projectType || "N/A"}</div>

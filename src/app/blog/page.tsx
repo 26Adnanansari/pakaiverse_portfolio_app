@@ -12,6 +12,8 @@ export const metadata = {
   description: "Read the latest insights on AI development, web scaling, SaaS building, and guest posting from PakAiVerse.",
 };
 
+export const revalidate = 0; // Force dynamic rendering
+
 export default async function BlogListingPage() {
   const publishedBlogs = await db
     .select()

@@ -11,6 +11,7 @@ const LINKS = [
   { label: "Projects", href: "/#projects" },
   { label: "Services", href: "/#services" },
   { label: "AI Updates", href: "/ai-updates" },
+  { label: "Blog", href: "/blog" },
   { label: "Guest Posts", href: "/guest-posts" },
   { label: "Process", href: "/#process" },
   { label: "Client Portal", href: "/client/dashboard" },

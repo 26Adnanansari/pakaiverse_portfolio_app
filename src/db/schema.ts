@@ -71,3 +71,16 @@ export const funnels = pgTable("funnels", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const projects = pgTable("projects", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  imageUrl: text("image_url").notNull(),
+  liveUrl: text("live_url"),
+  githubUrl: text("github_url"),
+  techStack: text("tech_stack"), // Store as comma separated or JSON string
+  category: varchar("category", { length: 100 }),
+  isFeatured: boolean("is_featured").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+

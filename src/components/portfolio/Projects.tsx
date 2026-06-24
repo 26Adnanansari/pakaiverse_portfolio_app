@@ -85,7 +85,22 @@ const cardVariants: any = {
   show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
 };
 
-export default function Projects() {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export default function Projects({ dbProjects = [] }: { dbProjects?: any[] }) {
+  // Format DB projects to match the existing PROJECTS structure
+  const formattedDbProjects = dbProjects.map(p => ({
+    name: p.name,
+    url: p.liveUrl || p.githubUrl || "#",
+    desc: p.description,
+    stack: p.techStack ? p.techStack.split(',').map((s: string) => s.trim()) : [],
+    type: p.category || "Project",
+    image: p.imageUrl,
+    color: "from-brand-primary/20 to-brand-secondary/20", // Default color for new projects
+  }));
+
+  // Combine DB projects and hardcoded projects (DB projects first)
+  const allProjects = [...formattedDbProjects, ...PROJECTS];
+
   return (
     <section className="section-pad relative z-10" id="projects">
       <div className="container-page">
@@ -108,7 +123,7 @@ export default function Projects() {
           viewport={{ once: true, margin: "-100px" }}
           className="grid gap-6 md:grid-cols-2 lg:gap-8"
         >
-          {PROJECTS.map((project, i) => (
+          {allProjects.map((project, i) => (
             <motion.div
               key={i}
               variants={cardVariants}
@@ -177,7 +192,7 @@ export default function Projects() {
                 </p>
 
                 <div className="flex flex-wrap gap-2">
-                  {project.stack.map((tech, j) => (
+                  {project.stack.map((tech: string, j: number) => (
                     <span
                       key={j}
                       className="rounded-full bg-brand-secondary/10 border border-brand-secondary/20 px-3 py-1 text-xs font-medium text-brand-secondary"

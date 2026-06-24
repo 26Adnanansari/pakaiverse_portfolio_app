@@ -10,8 +10,15 @@ import FunnelSection from "@/components/portfolio/FunnelSection";
 import Contact from "@/components/portfolio/Contact";
 import Footer from "@/components/portfolio/Footer";
 import FloatingCTA from "@/components/portfolio/FloatingCTA";
+import { db } from "@/db";
+import { projects } from "@/db/schema";
+import { desc } from "drizzle-orm";
 
-export default function Home() {
+export const revalidate = 60; // Revalidate home page every 60 seconds so dynamic projects appear
+
+export default async function Home() {
+  const dbProjects = await db.select().from(projects).orderBy(desc(projects.createdAt));
+
   return (
     <>
       <Navbar />
@@ -19,7 +26,7 @@ export default function Home() {
         <Hero />
         <GoogleSignInInfo />
         <FeaturedSaaS />
-        <Projects />
+        <Projects dbProjects={dbProjects} />
         <BentoServices />
         <ProcessTimeline />
         <AboutFounder />
