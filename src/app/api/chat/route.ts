@@ -24,17 +24,56 @@ STYLE RULES:
 - When user shows interest in starting a project, ask: "Great! Please share your Name, Email, WhatsApp number, and a brief about your project so our team can contact you."
 - After receiving details, say: "Shukriya! Hamari team jald aapse rabta karegi."`;
 
+// Try multiple API keys in sequence — if one quota exhausted, try next
+async function callGemini(contents: object[]): Promise<{ reply: string } | { error: string }> {
+  const keys = [
+    process.env.GEMINI_API_KEY_CHAT,   // dedicated chat key (primary)
+    process.env.GEMINI_API_KEY,        // shared key (fallback 1)
+    process.env.GEMINI_API_KEY_2,      // extra key (fallback 2)
+  ].filter(Boolean) as string[];
+
+  if (keys.length === 0) {
+    return { error: "no_key" };
+  }
+
+  for (const key of keys) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents,
+          generationConfig: { temperature: 0.6, maxOutputTokens: 300 },
+        }),
+      }
+    );
+
+    if (response.status === 429) {
+      console.warn("Chat key quota exceeded, trying fallback...");
+      continue; // try next key
+    }
+
+    if (!response.ok) {
+      console.error("Gemini chat error:", await response.text());
+      continue;
+    }
+
+    const data = await response.json();
+    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (reply) return { reply };
+  }
+
+  return { error: "quota_exceeded" };
+}
+
 export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: "Messages are required" }, { status: 400 });
-    }
-
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "AI not configured" }, { status: 500 });
     }
 
     // Keep only last 8 messages to save tokens
@@ -44,45 +83,21 @@ export async function POST(req: Request) {
       parts: [{ text: msg.text }],
     }));
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: SYSTEM_PROMPT }],
-          },
-          contents,
-          generationConfig: {
-            temperature: 0.6,
-            maxOutputTokens: 300,
-          },
-        }),
+    const result = await callGemini(contents);
+
+    if ("error" in result) {
+      if (result.error === "no_key") {
+        return NextResponse.json({
+          reply: "AI assistant abhi setup nahi hai. contact@pakaiverse.com pe email karein.",
+        });
       }
-    );
-
-    // Handle quota / rate limit errors gracefully
-    if (response.status === 429) {
+      // quota_exceeded
       return NextResponse.json({
-        reply: "Abhi thodi busy hoon 😅 Please 1 minute baad dobara try karein, ya directly contact@pakaiverse.com pe email karein. Hum jald reply karen ge!",
+        reply: "Abhi thodi busy hoon 😅 1 minute baad dobara try karein, ya contact@pakaiverse.com pe email karein. Hum jald reply karen ge!",
       });
     }
 
-    if (!response.ok) {
-      const err = await response.text();
-      console.error("Gemini error:", err);
-      return NextResponse.json({
-        reply: "Kuch technical masla aa gaya. Directly contact@pakaiverse.com pe email karein — hum jald reply karen ge!",
-      });
-    }
-
-    const data = await response.json();
-    const reply =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "Kuch jawab nahi mila. Dobara try karein.";
-
-    return NextResponse.json({ reply });
+    return NextResponse.json({ reply: result.reply });
   } catch (error) {
     console.error("Chat API error:", error);
     return NextResponse.json({
