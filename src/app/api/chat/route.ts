@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 
-// Concise system prompt — saves tokens on every request
 const SYSTEM_PROMPT = `You are PakAiBot, official AI assistant for PakAiVerse (pakaiverse.com). Founder: Adnan Ansari — AI & Web Developer, Pakistan.
 
 STRICT RULE: ONLY answer about PakAiVerse. For unrelated questions, say: "I'm here to help with PakAiVerse services. What project can I help you with?"
@@ -11,33 +10,28 @@ LIVE PROJECTS: fashion.pakaiverse.com (multi-vendor fashion), zamzampress.pakaiv
 
 TECH: Next.js, React, Node.js, TypeScript, PostgreSQL, Drizzle ORM, Tailwind, Framer Motion, Vercel, Stripe, Gemini AI.
 
-PRICING (approximate): Landing page from $100 | Web app from $300 | SaaS from $500 | E-commerce from $200 | SEO from $50/month. Always say: "Final price discussed after requirement review."
+PRICING (approximate): Landing page from $100 | Web app from $300 | SaaS from $500 | E-commerce from $200 | SEO from $50/month. Always say "Final price discussed after requirement review."
 
 PROCESS: Discuss → 50% advance → Build (1-6 weeks) → Launch → 1 month free support.
 
-CAPABILITIES: Small to large web apps, SaaS, e-commerce, POS, dashboards, AI tools. We take on challenging and complex projects too. Cannot build native mobile apps.
+CAPABILITIES: Small to large web apps, SaaS, e-commerce, POS, dashboards, AI tools. We take complex projects too. Cannot build native mobile apps.
 
 STYLE RULES:
-- Keep answers SHORT (2-4 sentences max). Use bullet points for lists.
-- Detect language: reply English if asked in English, Roman Urdu if asked in Roman Urdu. Never mix scripts.
-- Be professional, warm, confident.
-- When user shows interest in starting a project, ask: "Great! Please share your Name, Email, WhatsApp number, and a brief about your project so our team can contact you."
-- After receiving details, say: "Shukriya! Hamari team jald aapse rabta karegi."`;
+- Answers SHORT (2-4 sentences max). Bullet points for lists.
+- Detect language: English → reply English. Roman Urdu → reply Roman Urdu. Never mix scripts.
+- Professional, warm, confident.
+- For project interest: "Great! Share your Name, Email, WhatsApp, and project brief so our team can contact you."
+- After details received: "Shukriya! Hamari team jald aapse rabta karegi."`;
 
-// Try multiple API keys in sequence — if one quota exhausted, try next
-async function callGemini(contents: object[]): Promise<{ reply: string } | { error: string }> {
-  const keys = [
-    process.env.GEMINI_API_KEY_CHAT,   // dedicated chat key (primary)
-    process.env.GEMINI_API_KEY,        // shared key (fallback 1)
-    process.env.GEMINI_API_KEY_2,      // extra key (fallback 2)
-  ].filter(Boolean) as string[];
+// ─── Provider 1: Google Gemini ────────────────────────────────────────────────
+async function tryGemini(key: string, messages: { role: string; text: string }[]): Promise<string | null> {
+  try {
+    const contents = messages.map((m) => ({
+      role: m.role === "user" ? "user" : "model",
+      parts: [{ text: m.text }],
+    }));
 
-  if (keys.length === 0) {
-    return { error: "no_key" };
-  }
-
-  for (const key of keys) {
-    const response = await fetch(
+    const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
       {
         method: "POST",
@@ -50,58 +44,170 @@ async function callGemini(contents: object[]): Promise<{ reply: string } | { err
       }
     );
 
-    if (response.status === 429) {
-      console.warn("Chat key quota exceeded, trying fallback...");
-      continue; // try next key
-    }
-
-    if (!response.ok) {
-      console.error("Gemini chat error:", await response.text());
-      continue;
-    }
-
-    const data = await response.json();
-    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (reply) return { reply };
+    if (res.status === 429 || !res.ok) return null;
+    const data = await res.json();
+    return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+  } catch {
+    return null;
   }
-
-  return { error: "quota_exceeded" };
 }
 
+// ─── Provider 2: Groq (Llama 3.3 70B) ────────────────────────────────────────
+async function tryGroq(key: string, messages: { role: string; text: string }[]): Promise<string | null> {
+  try {
+    const chatMessages = [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...messages.map((m) => ({
+        role: m.role === "user" ? "user" : "assistant",
+        content: m.text,
+      })),
+    ];
+
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: chatMessages,
+        max_tokens: 300,
+        temperature: 0.6,
+      }),
+    });
+
+    if (res.status === 429 || !res.ok) return null;
+    const data = await res.json();
+    return data?.choices?.[0]?.message?.content ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Provider 3: OpenRouter (Free models) ────────────────────────────────────
+async function tryOpenRouter(key: string, messages: { role: string; text: string }[]): Promise<string | null> {
+  try {
+    const chatMessages = [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...messages.map((m) => ({
+        role: m.role === "user" ? "user" : "assistant",
+        content: m.text,
+      })),
+    ];
+
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+        "HTTP-Referer": "https://pakaiverse.com",
+        "X-Title": "PakAiVerse ChatBot",
+      },
+      body: JSON.stringify({
+        model: "meta-llama/llama-3.1-8b-instruct:free",
+        messages: chatMessages,
+        max_tokens: 300,
+        temperature: 0.6,
+      }),
+    });
+
+    if (res.status === 429 || !res.ok) return null;
+    const data = await res.json();
+    return data?.choices?.[0]?.message?.content ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Provider 4: Cerebras (Llama 3.3 70B) ────────────────────────────────────
+async function tryCerebras(key: string, messages: { role: string; text: string }[]): Promise<string | null> {
+  try {
+    const chatMessages = [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...messages.map((m) => ({
+        role: m.role === "user" ? "user" : "assistant",
+        content: m.text,
+      })),
+    ];
+
+    const res = await fetch("https://api.cerebras.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b",
+        messages: chatMessages,
+        max_tokens: 300,
+        temperature: 0.6,
+      }),
+    });
+
+    if (res.status === 429 || !res.ok) return null;
+    const data = await res.json();
+    return data?.choices?.[0]?.message?.content ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Main fallback chain ──────────────────────────────────────────────────────
+async function getAIReply(messages: { role: string; text: string }[]): Promise<string> {
+  const recent = messages.slice(-8);
+
+  // [1] Gemini — primary
+  const geminiKey = process.env.GEMINI_API_KEY_CHAT;
+  if (geminiKey) {
+    const reply = await tryGemini(geminiKey, recent);
+    if (reply) return reply;
+    console.warn("[PakAiBot] Gemini quota hit → trying Groq");
+  }
+
+  // [2] Groq — Llama 3.3 70B
+  const groqKey = process.env.GROQ_API_KEY;
+  if (groqKey) {
+    const reply = await tryGroq(groqKey, recent);
+    if (reply) return reply;
+    console.warn("[PakAiBot] Groq quota hit → trying OpenRouter");
+  }
+
+  // [3] OpenRouter — free models
+  const openrouterKey = process.env.OPENROUTER_API_KEY;
+  if (openrouterKey) {
+    const reply = await tryOpenRouter(openrouterKey, recent);
+    if (reply) return reply;
+    console.warn("[PakAiBot] OpenRouter quota hit → trying Cerebras");
+  }
+
+  // [4] Cerebras — backup
+  const cerebrasKey = process.env.CEREBRAS_API_KEY;
+  if (cerebrasKey) {
+    const reply = await tryCerebras(cerebrasKey, recent);
+    if (reply) return reply;
+    console.warn("[PakAiBot] Cerebras quota hit → all providers exhausted");
+  }
+
+  // All failed — friendly message (user won't know it's a limit)
+  return "Abhi thodi busy hoon 😅 Please ek minute mein dobara try karein, ya WhatsApp/email ke zariye hum se directly rabta karein — hum jald respond karen ge!";
+}
+
+// ─── Route handler ────────────────────────────────────────────────────────────
 export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json({ error: "Messages are required" }, { status: 400 });
+      return NextResponse.json({ error: "Messages required" }, { status: 400 });
     }
 
-    // Keep only last 8 messages to save tokens
-    const recentMessages = messages.slice(-8);
-    const contents = recentMessages.map((msg: { role: string; text: string }) => ({
-      role: msg.role === "user" ? "user" : "model",
-      parts: [{ text: msg.text }],
-    }));
-
-    const result = await callGemini(contents);
-
-    if ("error" in result) {
-      if (result.error === "no_key") {
-        return NextResponse.json({
-          reply: "AI assistant abhi setup nahi hai. contact@pakaiverse.com pe email karein.",
-        });
-      }
-      // quota_exceeded
-      return NextResponse.json({
-        reply: "Abhi thodi busy hoon 😅 1 minute baad dobara try karein, ya contact@pakaiverse.com pe email karein. Hum jald reply karen ge!",
-      });
-    }
-
-    return NextResponse.json({ reply: result.reply });
+    const reply = await getAIReply(messages);
+    return NextResponse.json({ reply });
   } catch (error) {
-    console.error("Chat API error:", error);
+    console.error("[PakAiBot] Fatal error:", error);
     return NextResponse.json({
-      reply: "Network masla aa gaya. Thodi der baad dobara try karein ya contact@pakaiverse.com pe email karein.",
+      reply: "Kuch masla aa gaya. Thodi der mein dobara try karein ya contact@pakaiverse.com pe email karein.",
     });
   }
 }
