@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { db } from "@/db";
+import { leads } from "@/db/schema";
 
 const SYSTEM_PROMPT = `You are PakAiBot, official AI assistant for PakAiVerse (pakaiverse.com). Founder: Adnan Ansari — AI & Web Developer, Pakistan.
 
@@ -16,12 +18,20 @@ PROCESS: Discuss → 50% advance → Build (1-6 weeks) → Launch → 1 month fr
 
 CAPABILITIES: Small to large web apps, SaaS, e-commerce, POS, dashboards, AI tools. We take complex projects too. Cannot build native mobile apps.
 
-STYLE RULES:
-- Answers SHORT (2-4 sentences max). Bullet points for lists.
-- Detect language: English → reply English. Roman Urdu → reply Roman Urdu. Never mix scripts.
-- Professional, warm, confident.
-- For project interest: "Great! Share your Name, Email, WhatsApp, and project brief so our team can contact you."
-- After details received: "Shukriya! Hamari team jald aapse rabta karegi."`;
+NEW COMMUNICATION RULES:
+1. Language Adaptation: Smoothly switch to the user's language (English, Roman Urdu, Urdu, Arabic).
+2. Active Listening & No Jargon: Use simple words, translate tech concepts to simple benefits. Let the client explain in their own words.
+3. No Aggression: Do NOT ask for contact details forcefully. Gather them naturally.
+4. Requirement Confirmation: Summarize their need in 1-2 lines.
+5. Strict Length Control: Keep ALL answers under 2-3 short, polite sentences.
+
+THE REVIEW & VALIDATION STAGE:
+Once requirements are clear and both parties are satisfied, you MUST do two things in your final response:
+1. Tell the user: generate a "Project Review Summary" in 2-3 sentences. Tell them this summary will be reviewed for tech capacity and budget, and they will get a final response shortly. If they didn't provide an email, give them a "Query Number" (e.g. "Aapka Query Number Q-XXXXX hai").
+2. OUTPUT A HIDDEN JSON BLOCK exactly formatted like this at the very end of your message:
+<SAVE_LEAD>
+{"name": "Client Name or N/A", "email": "client@email.com or N/A", "phone": "0300... or N/A", "budget": "$... or N/A", "projectType": "Web App... or N/A", "message": "Detailed Project Review Summary..."}
+</SAVE_LEAD>`;
 
 // ─── Provider 1: Google Gemini ────────────────────────────────────────────────
 async function tryGemini(key: string, messages: { role: string; text: string }[]): Promise<string | null> {
@@ -202,7 +212,44 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Messages required" }, { status: 400 });
     }
 
-    const reply = await getAIReply(messages);
+    let reply = await getAIReply(messages);
+
+    // Extract <SAVE_LEAD> block if present
+    const leadMatch = reply.match(/<SAVE_LEAD>([\s\S]*?)<\/SAVE_LEAD>/);
+    if (leadMatch) {
+      try {
+        const leadData = JSON.parse(leadMatch[1]);
+        
+        let clientEmail = leadData.email;
+        if (!clientEmail || clientEmail === "N/A" || !clientEmail.includes("@")) {
+          // Generate a Query Number format email if email is missing
+          const queryNumber = `Q-${Math.floor(10000 + Math.random() * 90000)}`;
+          clientEmail = `${queryNumber}@query.pakaiverse.com`;
+          
+          // Optionally, inject the query number into the text if the AI didn't do it itself
+          if (!reply.includes("Query Number") && !reply.includes("Q-")) {
+            reply = reply.replace(/<SAVE_LEAD>[\s\S]*?<\/SAVE_LEAD>/, `\n\nAapka Query Number: ${queryNumber} hai. `);
+          }
+        }
+
+        await db.insert(leads).values({
+          name: leadData.name !== "N/A" ? leadData.name : null,
+          email: clientEmail,
+          phone: leadData.phone !== "N/A" ? leadData.phone : null,
+          projectType: leadData.projectType !== "N/A" ? leadData.projectType : null,
+          budget: leadData.budget !== "N/A" ? leadData.budget : null,
+          message: leadData.message !== "N/A" ? leadData.message : null,
+          source: "chatbot",
+        });
+
+      } catch (err) {
+        console.error("Failed to parse or save lead:", err);
+      }
+      
+      // Clean the reply to remove the <SAVE_LEAD> block from user view
+      reply = reply.replace(/<SAVE_LEAD>[\s\S]*?<\/SAVE_LEAD>/, "").trim();
+    }
+
     return NextResponse.json({ reply });
   } catch (error) {
     console.error("[PakAiBot] Fatal error:", error);

@@ -82,7 +82,7 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
                 <div className="text-xs mt-1"><span className="text-slate-500">Source:</span> {lead.source || "Website"}</div>
               </td>
               <td className="px-4 py-4">
-                <div className="text-xs text-slate-400 line-clamp-3 max-w-xs" title={lead.message || ""}>
+                <div className="text-xs text-slate-300 max-w-sm whitespace-pre-wrap" title={lead.message || ""}>
                   {lead.message || "No message provided."}
                 </div>
               </td>
