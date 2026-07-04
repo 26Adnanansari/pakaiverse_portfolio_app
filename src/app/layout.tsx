@@ -44,12 +44,6 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "https://pakaiverse.com",
     siteName: "PakAiVerse",
-    images: [{
-      url: "/projects/Main-logo.png",
-      width: 1200,
-      height: 630,
-      alt: "PakAiVerse - AI Development Agency",
-    }],
   },
   twitter: {
     card: "summary_large_image",
