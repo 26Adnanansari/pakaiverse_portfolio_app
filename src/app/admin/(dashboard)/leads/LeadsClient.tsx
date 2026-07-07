@@ -22,7 +22,7 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"inbox" | "prospector">("inbox");
+  const [isProspectorOpen, setIsProspectorOpen] = useState(false);
   const [isProspecting, setIsProspecting] = useState(false);
 
   const handleStatusChange = async (id: number, status: string) => {
@@ -78,68 +78,65 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
 
   return (
     <div className="space-y-6">
-      {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-white/10 pb-4">
+      {/* Header Actions */}
+      <div className="flex items-center justify-between border-b border-white/10 pb-4">
+        <h2 className="text-xl font-bold text-white">Leads Inbox ({leads.length})</h2>
         <button
-          onClick={() => setActiveTab("inbox")}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${activeTab === "inbox" ? "bg-white/10 text-white" : "text-slate-400 hover:text-white hover:bg-white/5"}`}
+          onClick={() => setIsProspectorOpen(!isProspectorOpen)}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${isProspectorOpen ? "bg-white/10 text-white" : "bg-brand-primary text-black hover:bg-brand-primary/90"}`}
         >
-          Inbox ({leads.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("prospector")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${activeTab === "prospector" ? "bg-white/10 text-white" : "text-slate-400 hover:text-white hover:bg-white/5"}`}
-        >
-          <Search className="w-4 h-4" /> Find Leads
+          <Search className="w-4 h-4" /> {isProspectorOpen ? "Close Prospector" : "Find Leads"}
         </button>
       </div>
 
-      {activeTab === "prospector" && (
-        <div className="bg-[#111118] border border-white/10 rounded-xl p-6 shadow-sm max-w-2xl">
+      {isProspectorOpen && (
+        <div className="bg-[#111118] border border-white/10 rounded-xl p-6 shadow-sm max-w-2xl animate-in slide-in-from-top-2">
           <h2 className="text-lg font-bold text-white mb-4">Run Prospector</h2>
           <form 
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               setIsProspecting(true);
-              setTimeout(() => { setIsProspecting(false); alert("Prospecting simulated! Leads will appear in Inbox."); setActiveTab("inbox"); }, 2000);
+              const formData = new FormData(e.currentTarget);
+              const country = formData.get("country");
+              const city = formData.get("city");
+              const category = formData.get("category");
+              
+              try {
+                const res = await fetch("/api/admin/prospector", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ country, city, category }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                  alert(`Successfully found and added ${data.count} leads! Refresh to see them.`);
+                  setIsProspectorOpen(false);
+                  window.location.reload();
+                } else {
+                  alert("Error: " + data.error);
+                }
+              } catch (err) {
+                alert("Failed to call Prospector API.");
+              } finally {
+                setIsProspecting(false);
+              }
             }} 
             className="space-y-4"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">Country</label>
-                <input type="text" placeholder="e.g., Pakistan" className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-brand-primary" required />
+                <input name="country" type="text" placeholder="e.g., Pakistan" className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-brand-primary" required />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">City (Optional)</label>
-                <input type="text" placeholder="e.g., Karachi" className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-brand-primary" />
+                <input name="city" type="text" placeholder="e.g., Karachi" className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-brand-primary" />
               </div>
             </div>
             
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">Business Field / Category</label>
-              <input type="text" placeholder="e.g., Restaurant, Boutique, Tech Agency" className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-brand-primary" required />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Min Business Age</label>
-                <select className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-slate-300 focus:outline-none focus:border-brand-primary">
-                  <option value="any">Any</option>
-                  <option value="1">1 Year</option>
-                  <option value="3">3 Years</option>
-                  <option value="5">5+ Years</option>
-                </select>
-                <p className="text-[10px] text-slate-500 mt-1">*Uses website_age_estimate</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Max Business Age</label>
-                <select className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-slate-300 focus:outline-none focus:border-brand-primary">
-                  <option value="any">Any</option>
-                  <option value="5">5 Years</option>
-                  <option value="10">10 Years</option>
-                </select>
-              </div>
+              <input name="category" type="text" placeholder="e.g., Restaurant, Boutique, Tech Agency" className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-brand-primary" required />
             </div>
 
             <div className="pt-4 border-t border-white/10 flex justify-end">
@@ -156,8 +153,7 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
         </div>
       )}
 
-      {activeTab === "inbox" && (
-        <div className="space-y-4">
+      <div className="space-y-4">
           {/* Mobile-friendly Filter & Actions */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="relative">
@@ -291,7 +287,6 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
         </table>
       </div>
         </div>
-      )}
     </div>
   );
 }
