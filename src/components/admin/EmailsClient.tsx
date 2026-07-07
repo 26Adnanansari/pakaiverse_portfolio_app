@@ -5,28 +5,19 @@ import { Mail, PenTool, CheckCircle, Eye, AlertCircle, X } from "lucide-react";
 
 type TabMode = "AI_DRAFTS" | "CUSTOM_COMPOSE";
 
-const MOCK_DRAFTS = [
-  {
-    id: "1",
-    prospectName: "John Doe",
-    company: "Acme Corp",
-    subject: "Accelerate your AI development",
-    body: "Hi John,\n\nI noticed Acme Corp is expanding its tech stack. We offer specialized solutions that can help.\n\nBest,\nAdmin\n\n{{unsubscribe_link}}",
-    status: "pending",
-  },
-  {
-    id: "2",
-    prospectName: "Jane Smith",
-    company: "TechFlow",
-    subject: "Partnership opportunity",
-    body: "Hello Jane,\n\nI loved your recent post about TechFlow. Let's chat about a potential partnership.\n\nThanks,\nAdmin\n\n{{unsubscribe_link}}",
-    status: "pending",
-  }
-];
+type Draft = {
+  id: string;
+  prospectName: string;
+  company: string;
+  subject: string;
+  body: string;
+  status: string;
+};
 
-export function EmailsClient() {
+export function EmailsClient({ initialDrafts = [] }: { initialDrafts?: Draft[] }) {
   const [activeTab, setActiveTab] = useState<TabMode>("AI_DRAFTS");
-  const [previewEmail, setPreviewEmail] = useState<typeof MOCK_DRAFTS[0] | null>(null);
+  const [drafts, setDrafts] = useState<Draft[]>(initialDrafts);
+  const [previewEmail, setPreviewEmail] = useState<Draft | null>(null);
 
   const renderBodyWithHighlights = (body: string) => {
     const parts = body.split(/(\{\{[^}]+\}\})/g);
@@ -84,7 +75,7 @@ export function EmailsClient() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {MOCK_DRAFTS.map((draft) => (
+                {drafts.map((draft) => (
                   <tr key={draft.id} className="hover:bg-white/5 transition">
                     <td className="px-4 py-4">
                       <div className="font-bold text-white">{draft.prospectName || "N/A"}</div>
@@ -111,7 +102,7 @@ export function EmailsClient() {
                     </td>
                   </tr>
                 ))}
-                {MOCK_DRAFTS.length === 0 && (
+                {drafts.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-4 py-12 text-center text-slate-500">
                       No AI drafts pending approval.
