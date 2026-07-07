@@ -23,6 +23,8 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isProspectorOpen, setIsProspectorOpen] = useState(false);
+  const [isManualAddOpen, setIsManualAddOpen] = useState(false);
+  const [isAddingManual, setIsAddingManual] = useState(false);
   const [isProspecting, setIsProspecting] = useState(false);
 
   const handleStatusChange = async (id: number, status: string) => {
@@ -81,12 +83,20 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
       {/* Header Actions */}
       <div className="flex items-center justify-between border-b border-white/10 pb-4">
         <h2 className="text-xl font-bold text-white">Leads Inbox ({leads.length})</h2>
-        <button
-          onClick={() => setIsProspectorOpen(!isProspectorOpen)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${isProspectorOpen ? "bg-white/10 text-white" : "bg-brand-primary text-black hover:bg-brand-primary/90"}`}
-        >
-          <Search className="w-4 h-4" /> {isProspectorOpen ? "Close Prospector" : "Find Leads"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setIsManualAddOpen(!isManualAddOpen)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${isManualAddOpen ? "bg-white/10 text-white" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
+          >
+            Add Lead Manually
+          </button>
+          <button
+            onClick={() => setIsProspectorOpen(!isProspectorOpen)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${isProspectorOpen ? "bg-white/10 text-white" : "bg-brand-primary text-black hover:bg-brand-primary/90"}`}
+          >
+            <Search className="w-4 h-4" /> {isProspectorOpen ? "Close Prospector" : "Find Leads"}
+          </button>
+        </div>
       </div>
 
       {isProspectorOpen && (
@@ -148,6 +158,75 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
               >
                 {isProspecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 {isProspecting ? "Searching..." : "Find Leads"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {isManualAddOpen && (
+        <div className="bg-[#111118] border border-white/10 rounded-xl p-6 shadow-sm max-w-2xl animate-in slide-in-from-top-2">
+          <h2 className="text-lg font-bold text-white mb-4">Add Lead Manually</h2>
+          <form 
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setIsAddingManual(true);
+              const formData = new FormData(e.currentTarget);
+              try {
+                const res = await fetch("/api/admin/leads", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(Object.fromEntries(formData)),
+                });
+                const data = await res.json();
+                if (data.success) {
+                  alert("Successfully added lead! Refresh to see it.");
+                  setIsManualAddOpen(false);
+                  window.location.reload();
+                } else {
+                  alert("Error: " + data.error);
+                }
+              } catch (err) {
+                console.error("Add lead error:", err);
+                alert("Failed to add lead.");
+              } finally {
+                setIsAddingManual(false);
+              }
+            }} 
+            className="space-y-4"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Company Name</label>
+                <input name="companyName" type="text" className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-brand-primary" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Contact Email</label>
+                <input name="contactEmail" type="email" className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-brand-primary" required />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Contact Name (Optional)</label>
+                <input name="contactName" type="text" className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-brand-primary" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Niche / Category</label>
+                <input name="projectType" type="text" className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-brand-primary" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Notes / Context</label>
+              <textarea name="message" rows={3} className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-brand-primary" />
+            </div>
+            <div className="pt-4 border-t border-white/10 flex justify-end">
+              <button 
+                type="submit" 
+                disabled={isAddingManual}
+                className="bg-brand-primary text-black font-bold px-6 py-2.5 rounded-lg transition hover:bg-brand-primary/90 disabled:opacity-60 flex items-center gap-2"
+              >
+                {isAddingManual ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                {isAddingManual ? "Adding..." : "Save Lead"}
               </button>
             </div>
           </form>
@@ -236,8 +315,20 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
                   </button>
                 </td>
                 <td className="px-4 py-4">
-                  <div className="font-bold text-white">{lead.name || "N/A"}</div>
-                  <div className="text-xs text-slate-400 mb-1">{lead.email}</div>
+                  <div className="font-bold text-white flex items-center gap-2">
+                    {lead.name || "N/A"}
+                    {lead.message?.includes("Website: http") ? (
+                      <span className="bg-green-500/20 text-green-400 text-[10px] px-1.5 py-0.5 rounded border border-green-500/30">Has Website</span>
+                    ) : (
+                      <span className="bg-slate-800 text-slate-400 text-[10px] px-1.5 py-0.5 rounded border border-slate-700">No Website</span>
+                    )}
+                  </div>
+                  {/* TODO: Add dedicated is_enriched boolean column to DB for long-term robustness */}
+                  {lead.email.includes("pending_enrichment_") ? (
+                    <div className="text-xs mt-1 mb-1 bg-slate-800/80 text-slate-400 border border-slate-700 rounded px-2 py-0.5 inline-block">Not Enriched Yet</div>
+                  ) : (
+                    <div className="text-xs text-slate-400 mb-1 mt-1">{lead.email}</div>
+                  )}
                   {lead.phone ? (
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-brand-primary">{lead.phone}</span>

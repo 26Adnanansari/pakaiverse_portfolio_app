@@ -47,7 +47,8 @@ export async function GET(req: Request) {
     }
 
     let sentCount = 0;
-    const errors = [];
+    let followUpScheduledCount = 0;
+    const errors: { id: number; error: string }[] = [];
 
     // 2. Iterate through and send emails
     for (const item of pendingEmails) {
@@ -109,6 +110,7 @@ export async function GET(req: Request) {
               scheduledAt: followUpDate,
               status: "pending"
             });
+            followUpScheduledCount++;
           }
         } else {
           // Failed to send
@@ -135,6 +137,28 @@ export async function GET(req: Request) {
 
       // Small delay between sends (e.g. 2 seconds) to avoid spamming the HTTP API
       await new Promise(res => setTimeout(res, 2000));
+    }
+
+    // 4. Send Daily Admin Summary
+    try {
+      const adminEmail = process.env.EMAIL_USER || "adnan@mail.pakaiverse.com"; // Fallback to a known admin email
+      
+      const summaryHtml = `
+        <h2>Daily Outreach Summary</h2>
+        <p><strong>Total Sent:</strong> ${sentCount}</p>
+        <p><strong>Follow-ups Scheduled:</strong> ${followUpScheduledCount}</p>
+        <p><strong>Failures:</strong> ${errors.length}</p>
+        ${errors.length > 0 ? `<p><strong>Error Details:</strong></p><ul>${errors.map(e => `<li>Task ID ${e.id}: ${e.error}</li>`).join("")}</ul>` : ""}
+      `;
+
+      // This is sent independently via our standard email client and does NOT count towards the DB queue limits
+      await sendEmail({
+        to: adminEmail,
+        subject: `PakAiVerse Daily Summary - ${sentCount} sent`,
+        html: summaryHtml,
+      });
+    } catch (summaryErr) {
+      console.error("Failed to send daily summary email:", summaryErr);
     }
 
     return NextResponse.json({ 

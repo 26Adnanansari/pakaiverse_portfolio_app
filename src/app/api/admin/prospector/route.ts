@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { leads } from "@/db/schema";
+import { leads, settings } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export async function POST(req: Request) {
   try {
@@ -15,20 +16,31 @@ export async function POST(req: Request) {
       );
     }
 
+    // Fetch configurable minimum reviews threshold, default to 3
+    let minReviewsThreshold = 3;
+    try {
+      const [setting] = await db.select().from(settings).where(eq(settings.id, "min_reviews_threshold"));
+      if (setting && setting.value) {
+        minReviewsThreshold = parseInt(setting.value, 10);
+      }
+    } catch (e) {
+      console.warn("Failed to fetch min_reviews_threshold from settings, using default.", e);
+    }
+
     const searchQuery = `${category} in ${city ? city + ", " : ""}${country}`;
 
-    // Call Google Places Text Search API (New)
+    // Call Google Places Text Search API
     const response = await fetch("https://places.googleapis.com/v1/places:searchText", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.websiteUri,places.nationalPhoneNumber,places.id"
+        "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.websiteUri,places.nationalPhoneNumber,places.id,places.businessStatus,places.userRatingCount,places.rating"
       },
       body: JSON.stringify({
         textQuery: searchQuery,
         languageCode: "en",
-        maxResultCount: 5, // Limiting to 5 for test
+        maxResultCount: 20, // Increased to max allowed per request
       }),
     });
 
@@ -46,13 +58,50 @@ export async function POST(req: Request) {
     }
 
     let insertedCount = 0;
+    const seenPhones = new Set<string>();
+    const seenAddresses = new Set<string>();
 
     for (const place of places) {
-      const name = place.displayName?.text || "Unknown Business";
-      const address = place.formattedAddress || "";
+      // Filter 1: Must be operational
+      if (place.businessStatus !== "OPERATIONAL") {
+        continue;
+      }
+
+      const reviewCount = place.userRatingCount || 0;
+      
+      // Filter 2: Min reviews threshold
+      if (reviewCount < minReviewsThreshold) {
+        continue;
+      }
+
       const phone = place.nationalPhoneNumber || "";
+      
+      // Filter 3: Must have phone number
+      if (!phone) {
+        continue;
+      }
+
+      const address = place.formattedAddress || "";
+      const normalizedPhone = phone.replace(/\D/g, '');
+      const normalizedAddress = address.toLowerCase().trim();
+
+      // Filter 4: Deduplicate by phone or address
+      if (seenPhones.has(normalizedPhone) || seenAddresses.has(normalizedAddress)) {
+        continue;
+      }
+
+      seenPhones.add(normalizedPhone);
+      seenAddresses.add(normalizedAddress);
+
+      const name = place.displayName?.text || "Unknown Business";
       const website = place.websiteUri || "";
       const placeId = place.id;
+      const rating = place.rating || 0;
+
+      let qualityFlag = "";
+      if (rating === 5.0 && reviewCount < 10) {
+        qualityFlag = "[Low-Review-High-Rating] ";
+      }
       
       // Google places doesn't return emails, we use a placeholder that clearly indicates pending enrichment
       const placeholderEmail = `pending_enrichment_${placeId}@pakaiverse.local`;
@@ -62,7 +111,7 @@ export async function POST(req: Request) {
         email: placeholderEmail,
         phone: phone,
         projectType: category,
-        message: `Found via Prospector. Address: ${address}. Website: ${website}`,
+        message: `${qualityFlag}Found via Prospector. Address: ${address}. Website: ${website}. Rating: ${rating} (${reviewCount} reviews)`,
         source: "prospector",
         status: "new",
       });

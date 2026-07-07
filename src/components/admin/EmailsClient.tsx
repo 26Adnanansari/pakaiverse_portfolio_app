@@ -73,31 +73,53 @@ export function EmailsClient() {
       {/* Content */}
       {activeTab === "AI_DRAFTS" && (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {MOCK_DRAFTS.map((draft) => (
-              <div key={draft.id} className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-white font-medium">{draft.subject}</h3>
-                    <p className="text-slate-400 text-sm">To: {draft.prospectName} ({draft.company})</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2 pt-2 border-t border-white/10">
-                  <button 
-                    onClick={() => setPreviewEmail(draft)}
-                    className="flex-1 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-slate-300 py-2 rounded-lg text-sm transition"
-                  >
-                    <Eye className="w-4 h-4" />
-                    Preview
-                  </button>
-                  <button className="flex-1 flex items-center justify-center gap-2 bg-brand-primary hover:bg-brand-primary/80 text-white py-2 rounded-lg text-sm transition">
-                    <CheckCircle className="w-4 h-4" />
-                    Approve
-                  </button>
-                </div>
-              </div>
-            ))}
+          <div className="bg-[#111118] border border-white/10 rounded-xl overflow-x-auto shadow-sm">
+            <table className="w-full text-left text-sm text-slate-300 min-w-[800px]">
+              <thead className="bg-white/5 text-slate-400 uppercase text-xs">
+                <tr>
+                  <th className="px-4 py-3">Recipient</th>
+                  <th className="px-4 py-3">Subject</th>
+                  <th className="px-4 py-3 max-w-xs">Body Excerpt</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {MOCK_DRAFTS.map((draft) => (
+                  <tr key={draft.id} className="hover:bg-white/5 transition">
+                    <td className="px-4 py-4">
+                      <div className="font-bold text-white">{draft.prospectName || "N/A"}</div>
+                      <div className="text-xs text-slate-400">{draft.company}</div>
+                    </td>
+                    <td className="px-4 py-4 font-medium text-white">{draft.subject}</td>
+                    <td className="px-4 py-4 max-w-xs">
+                      <div className="text-xs text-slate-300 line-clamp-2" title={draft.body}>
+                        {draft.body.replace(/\n/g, " ")}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => setPreviewEmail(draft)}
+                          className="flex items-center justify-center gap-1.5 bg-white/5 hover:bg-white/10 text-slate-300 px-3 py-1.5 rounded text-xs transition"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> Preview
+                        </button>
+                        <button className="flex items-center justify-center gap-1.5 bg-brand-primary hover:bg-brand-primary/80 text-black px-3 py-1.5 rounded text-xs transition font-bold">
+                          <CheckCircle className="w-3.5 h-3.5" /> Approve
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {MOCK_DRAFTS.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-12 text-center text-slate-500">
+                      No AI drafts pending approval.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
