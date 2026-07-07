@@ -114,13 +114,14 @@ export async function GET(req: Request) {
             .where(eq(emailQueue.id, item.id));
         }
 
-      } catch (err: any) {
-        errors.push({ id: item.id, error: err.message });
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        errors.push({ id: item.id, error: errorMessage });
         await db.update(emailQueue)
             .set({ 
               attempts: (item.attempts || 0) + 1,
               status: ((item.attempts || 0) + 1) >= 3 ? "failed" : "pending",
-              errorLog: err.message
+              errorLog: errorMessage
             })
             .where(eq(emailQueue.id, item.id));
       }
@@ -135,8 +136,9 @@ export async function GET(req: Request) {
       errors: errors.length > 0 ? errors : undefined 
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Cron Job Error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }
 }

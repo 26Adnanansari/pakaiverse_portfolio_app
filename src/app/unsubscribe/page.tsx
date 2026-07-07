@@ -40,7 +40,7 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
         </div>
       </div>
     );
-  } catch (error) {
+  } catch {
     return (
       <div className="min-h-screen bg-[#0A0A0F] text-white flex items-center justify-center p-4">
         <div className="max-w-md text-center space-y-4">
