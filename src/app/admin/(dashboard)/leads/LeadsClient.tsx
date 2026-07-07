@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Filter, Trash2, CheckCircle, ChevronDown, CheckSquare, Square } from "lucide-react";
+import { Filter, Trash2, CheckCircle, ChevronDown, CheckSquare, Square, Sparkles, Search, Loader2 } from "lucide-react";
 
 type Lead = {
   id: number;
@@ -22,6 +22,8 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"inbox" | "prospector">("inbox");
+  const [isProspecting, setIsProspecting] = useState(false);
 
   const handleStatusChange = async (id: number, status: string) => {
     setUpdating(id);
@@ -75,9 +77,89 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
   const filteredLeads = leads.filter(l => statusFilter === "all" || l.status === statusFilter);
 
   return (
-    <div className="space-y-4">
-      {/* Mobile-friendly Filter & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6">
+      {/* Tabs */}
+      <div className="flex items-center gap-2 border-b border-white/10 pb-4">
+        <button
+          onClick={() => setActiveTab("inbox")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${activeTab === "inbox" ? "bg-white/10 text-white" : "text-slate-400 hover:text-white hover:bg-white/5"}`}
+        >
+          Inbox ({leads.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("prospector")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${activeTab === "prospector" ? "bg-white/10 text-white" : "text-slate-400 hover:text-white hover:bg-white/5"}`}
+        >
+          <Search className="w-4 h-4" /> Find Leads
+        </button>
+      </div>
+
+      {activeTab === "prospector" && (
+        <div className="bg-[#111118] border border-white/10 rounded-xl p-6 shadow-sm max-w-2xl">
+          <h2 className="text-lg font-bold text-white mb-4">Run Prospector</h2>
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              setIsProspecting(true);
+              setTimeout(() => { setIsProspecting(false); alert("Prospecting simulated! Leads will appear in Inbox."); setActiveTab("inbox"); }, 2000);
+            }} 
+            className="space-y-4"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Country</label>
+                <input type="text" placeholder="e.g., Pakistan" className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-brand-primary" required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">City (Optional)</label>
+                <input type="text" placeholder="e.g., Karachi" className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-brand-primary" />
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Business Field / Category</label>
+              <input type="text" placeholder="e.g., Restaurant, Boutique, Tech Agency" className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-brand-primary" required />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Min Business Age</label>
+                <select className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-slate-300 focus:outline-none focus:border-brand-primary">
+                  <option value="any">Any</option>
+                  <option value="1">1 Year</option>
+                  <option value="3">3 Years</option>
+                  <option value="5">5+ Years</option>
+                </select>
+                <p className="text-[10px] text-slate-500 mt-1">*Uses website_age_estimate</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Max Business Age</label>
+                <select className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-slate-300 focus:outline-none focus:border-brand-primary">
+                  <option value="any">Any</option>
+                  <option value="5">5 Years</option>
+                  <option value="10">10 Years</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-white/10 flex justify-end">
+              <button 
+                type="submit" 
+                disabled={isProspecting}
+                className="bg-brand-primary text-black font-bold px-6 py-2.5 rounded-lg transition hover:bg-brand-primary/90 disabled:opacity-60 flex items-center gap-2"
+              >
+                {isProspecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                {isProspecting ? "Searching..." : "Find Leads"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {activeTab === "inbox" && (
+        <div className="space-y-4">
+          {/* Mobile-friendly Filter & Actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="relative">
           <button 
             onClick={() => setIsFilterOpen(!isFilterOpen)}
@@ -119,6 +201,9 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
             </button>
             <button onClick={() => handleBulkAction("mark_contacted")} className="flex items-center gap-1.5 bg-brand-primary hover:bg-brand-primary/80 text-white px-3 py-1.5 rounded-lg text-sm transition">
               <CheckCircle className="w-4 h-4" /> <span className="hidden sm:inline">Mark Contacted</span>
+            </button>
+            <button onClick={() => handleBulkAction("send_to_ai")} className="flex items-center gap-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 px-3 py-1.5 rounded-lg text-sm transition">
+              <Sparkles className="w-4 h-4" /> <span className="hidden sm:inline">Send to AI</span>
             </button>
           </div>
         </div>
@@ -205,6 +290,8 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
           </tbody>
         </table>
       </div>
+        </div>
+      )}
     </div>
   );
 }
