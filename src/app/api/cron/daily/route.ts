@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { leads, emailQueue } from "@/db/schema";
 import { eq, and, lte, asc } from "drizzle-orm";
 import { sendEmail } from "@/lib/email";
+import { getBaseEmailTemplate } from "@/lib/email-templates";
 
 // Ensure this route is dynamic and handled as a cron job
 export const dynamic = "force-dynamic";
@@ -66,10 +67,16 @@ export async function GET(req: Request) {
 
       // Send the email
       try {
+        const wrappedHtml = getBaseEmailTemplate({ 
+          content: item.body, 
+          companyName: "Your Company", // In reality, fetch from lead.companyName if available
+          leadId: item.leadId?.toString()
+        });
+
         const sendResult = await sendEmail({
           to: item.leadEmail,
           subject: item.subject,
-          html: item.body,
+          html: wrappedHtml,
         });
 
         if (sendResult.id || sendResult.success) { // Resend returns id, Nodemailer returns success

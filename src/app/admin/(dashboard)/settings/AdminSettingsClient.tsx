@@ -71,7 +71,7 @@ export default function AdminSettingsClient({ initialBankDetails }: { initialBan
   };
 
   return (
-    <div className="space-y-10">
+    <div className="max-w-6xl mx-auto space-y-10">
       {/* Usage Stats Section */}
       <section className="space-y-4">
         <div>
