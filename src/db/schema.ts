@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, varchar, serial, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, varchar, serial, boolean, integer } from "drizzle-orm/pg-core";
 
 export const articles = pgTable("articles", {
   id: varchar("id", { length: 255 }).primaryKey(),
@@ -24,6 +24,9 @@ export const leads = pgTable("leads", {
   message: text("message"),
   source: varchar("source", { length: 50 }).default("website"),
   status: varchar("status", { length: 50 }).default("new"),
+  suppressList: boolean("suppress_list").default(false),
+  followUpCount: integer("follow_up_count").default(0), // Track number of follow-ups
+  lastEmailedAt: timestamp("last_emailed_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -82,5 +85,29 @@ export const projects = pgTable("projects", {
   category: varchar("category", { length: 100 }),
   isFeatured: boolean("is_featured").default(false),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const emailQueue = pgTable("email_queue", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id"), // Ideally references leads.id
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  scheduledAt: timestamp("scheduled_at").defaultNow().notNull(),
+  status: varchar("status", { length: 50 }).default("pending"), // pending, sent, failed, cancelled
+  attempts: integer("attempts").default(0),
+  errorLog: text("error_log"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const replies = pgTable("replies", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id"), // Ideally references leads.id
+  messageId: varchar("message_id", { length: 255 }),
+  content: text("content"),
+  sentiment: varchar("sentiment", { length: 50 }), // interested, neutral, not_interested
+  aiSuggestedResponse: text("ai_suggested_response"),
+  status: varchar("status", { length: 50 }).default("pending"), // pending (needs admin review), resolved
+  receivedAt: timestamp("received_at").defaultNow(),
 });
 
