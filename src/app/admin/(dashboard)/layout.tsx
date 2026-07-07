@@ -2,6 +2,8 @@ import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { MobileNav } from "@/components/admin/MobileNav";
+import { HelpPanel } from "@/components/admin/HelpPanel";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -17,6 +19,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           {/* Logo + Title */}
           <div className="flex items-center gap-3">
+            <MobileNav />
             <div className="relative w-9 h-9 rounded-lg overflow-hidden flex-shrink-0">
               <Image src="/projects/Main-logo.png" alt="PakAiVerse" fill className="object-contain" />
             </div>
@@ -31,6 +34,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link href="/admin" className="hover:text-white transition">Orders</Link>
             <Link href="/admin/leads" className="hover:text-white transition">Leads</Link>
             <Link href="/admin/projects" className="hover:text-white transition">Projects</Link>
+            <Link href="/admin/emails" className="hover:text-white transition">Emails</Link>
+            <Link href="/admin/replies" className="hover:text-white transition">Replies</Link>
             <Link href="/admin/blog" className="hover:text-white transition">Blog</Link>
             <Link href="/admin/settings" className="hover:text-white transition">Settings</Link>
           </nav>
@@ -58,6 +63,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <main className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
         {children}
       </main>
+
+      <HelpPanel />
     </div>
   );
 }

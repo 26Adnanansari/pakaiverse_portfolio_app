@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Filter, Trash2, CheckCircle, ChevronDown, CheckSquare, Square } from "lucide-react";
 
 type Lead = {
   id: number;
@@ -18,6 +19,9 @@ type Lead = {
 export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [updating, setUpdating] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const handleStatusChange = async (id: number, status: string) => {
     setUpdating(id);
@@ -40,81 +44,167 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
     }
   };
 
+  const toggleSelect = (id: number) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredLeads.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredLeads.map(l => l.id)));
+    }
+  };
+
+  const handleBulkAction = (action: string) => {
+    if (selectedIds.size === 0) return;
+    const confirmAction = confirm(`Are you sure you want to perform this action on ${selectedIds.size} leads?`);
+    if (confirmAction) {
+      // Stub for actual bulk API call
+      alert(`Bulk ${action} executed for ${selectedIds.size} leads (Mocked)`);
+      setSelectedIds(new Set());
+    }
+  };
+
+  const filteredLeads = leads.filter(l => statusFilter === "all" || l.status === statusFilter);
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm text-slate-300">
-        <thead className="bg-white/5 text-slate-400 uppercase text-xs">
-          <tr>
-            <th className="px-4 py-3 rounded-tl-lg">ID</th>
-            <th className="px-4 py-3">Contact Info</th>
-            <th className="px-4 py-3">Project Details</th>
-            <th className="px-4 py-3">Message</th>
-            <th className="px-4 py-3">Status</th>
-            <th className="px-4 py-3 rounded-tr-lg">Date</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-white/5">
-          {leads.map((lead) => (
-            <tr key={lead.id} className="hover:bg-white/5 transition">
-              <td className="px-4 py-4 font-medium text-white">#{lead.id}</td>
-              <td className="px-4 py-4">
-                <div className="font-bold text-white">{lead.name || "N/A"}</div>
-                <div className="text-xs text-slate-400 mb-1">{lead.email}</div>
-                {lead.phone ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-brand-primary">{lead.phone}</span>
-                    <a 
-                      href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, '')}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 bg-green-500/10 text-green-500 hover:bg-green-500/20 px-2 py-0.5 rounded text-[10px] font-medium transition"
-                    >
-                      WhatsApp
-                    </a>
-                  </div>
-                ) : (
-                  <div className="text-xs text-slate-500">No Phone</div>
-                )}
-              </td>
-              <td className="px-4 py-4">
-                <div className="font-bold text-brand-secondary">{lead.projectType || "N/A"}</div>
-                <div className="text-xs mt-1"><span className="text-slate-500">Budget:</span> {lead.budget || "N/A"}</div>
-                <div className="text-xs mt-1"><span className="text-slate-500">Source:</span> {lead.source || "Website"}</div>
-              </td>
-              <td className="px-4 py-4">
-                <div className="text-xs text-slate-300 max-w-sm whitespace-pre-wrap" title={lead.message || ""}>
-                  {lead.message || "No message provided."}
-                </div>
-              </td>
-              <td className="px-4 py-4">
-                <select 
-                  value={lead.status || "new"}
-                  onChange={(e) => handleStatusChange(lead.id, e.target.value)}
-                  disabled={updating === lead.id}
-                  className={`bg-white/10 border border-white/10 rounded px-2 py-1 outline-none text-xs ${
-                    lead.status === 'contacted' ? 'text-blue-400' :
-                    lead.status === 'closed' ? 'text-green-400' :
-                    lead.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'
-                  }`}
+    <div className="space-y-4">
+      {/* Mobile-friendly Filter & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="relative">
+          <button 
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className="flex items-center gap-2 bg-[#111118] border border-white/10 hover:bg-white/5 text-slate-300 px-4 py-2 rounded-lg text-sm transition w-full sm:w-auto justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4" />
+              Filter: {statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
+            </div>
+            <ChevronDown className={`w-4 h-4 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {isFilterOpen && (
+            <div className="absolute top-full left-0 mt-2 w-full sm:w-48 bg-[#111118] border border-white/10 rounded-lg shadow-xl z-10 py-1">
+              {['all', 'new', 'contacted', 'closed', 'rejected'].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => { setStatusFilter(s); setIsFilterOpen(false); }}
+                  className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition ${statusFilter === s ? 'text-white bg-white/5' : 'text-slate-400'}`}
                 >
-                  <option value="new">New</option>
-                  <option value="contacted">Contacted</option>
-                  <option value="closed">Closed / Won</option>
-                  <option value="rejected">Rejected / Lost</option>
-                </select>
-              </td>
-              <td className="px-4 py-4 text-xs">
-                {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : 'N/A'}
-              </td>
-            </tr>
-          ))}
-          {leads.length === 0 && (
-            <tr>
-              <td colSpan={6} className="px-4 py-8 text-center text-slate-500">No leads found.</td>
-            </tr>
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                </button>
+              ))}
+            </div>
           )}
-        </tbody>
-      </table>
+        </div>
+      </div>
+
+      {/* Sticky Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="sticky top-4 z-20 flex items-center justify-between bg-brand-primary/20 border border-brand-primary/30 backdrop-blur-md text-white px-4 py-3 rounded-lg shadow-lg animate-in slide-in-from-top-2">
+          <div className="text-sm font-medium">
+            <span className="bg-brand-primary px-2 py-0.5 rounded mr-2">{selectedIds.size}</span>
+            leads selected
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => handleBulkAction("delete")} className="flex items-center gap-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 px-3 py-1.5 rounded-lg text-sm transition">
+              <Trash2 className="w-4 h-4" /> <span className="hidden sm:inline">Delete</span>
+            </button>
+            <button onClick={() => handleBulkAction("mark_contacted")} className="flex items-center gap-1.5 bg-brand-primary hover:bg-brand-primary/80 text-white px-3 py-1.5 rounded-lg text-sm transition">
+              <CheckCircle className="w-4 h-4" /> <span className="hidden sm:inline">Mark Contacted</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Table container */}
+      <div className="bg-[#111118] border border-white/10 rounded-xl overflow-x-auto shadow-sm">
+        <table className="w-full text-left text-sm text-slate-300 min-w-[800px]">
+          <thead className="bg-white/5 text-slate-400 uppercase text-xs">
+            <tr>
+              <th className="px-4 py-3 w-12 text-center">
+                <button onClick={toggleSelectAll} className="text-slate-400 hover:text-white transition">
+                  {selectedIds.size === filteredLeads.length && filteredLeads.length > 0 ? (
+                    <CheckSquare className="w-4 h-4" />
+                  ) : (
+                    <Square className="w-4 h-4" />
+                  )}
+                </button>
+              </th>
+              <th className="px-4 py-3">Contact Info</th>
+              <th className="px-4 py-3">Project Details</th>
+              <th className="px-4 py-3 max-w-xs">Message</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Date</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {filteredLeads.map((lead) => (
+              <tr key={lead.id} className={`transition ${selectedIds.has(lead.id) ? 'bg-brand-primary/5' : 'hover:bg-white/5'}`}>
+                <td className="px-4 py-4 text-center">
+                  <button onClick={() => toggleSelect(lead.id)} className="text-slate-400 hover:text-brand-primary transition">
+                    {selectedIds.has(lead.id) ? <CheckSquare className="w-4 h-4 text-brand-primary" /> : <Square className="w-4 h-4" />}
+                  </button>
+                </td>
+                <td className="px-4 py-4">
+                  <div className="font-bold text-white">{lead.name || "N/A"}</div>
+                  <div className="text-xs text-slate-400 mb-1">{lead.email}</div>
+                  {lead.phone ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-brand-primary">{lead.phone}</span>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-500">No Phone</div>
+                  )}
+                </td>
+                <td className="px-4 py-4">
+                  <div className="font-bold text-brand-secondary">{lead.projectType || "N/A"}</div>
+                  <div className="text-xs mt-1"><span className="text-slate-500">Budget:</span> {lead.budget || "N/A"}</div>
+                </td>
+                <td className="px-4 py-4 max-w-xs">
+                  <div className="text-xs text-slate-300 line-clamp-3" title={lead.message || ""}>
+                    {lead.message || "No message provided."}
+                  </div>
+                </td>
+                <td className="px-4 py-4">
+                  <select 
+                    value={lead.status || "new"}
+                    onChange={(e) => handleStatusChange(lead.id, e.target.value)}
+                    disabled={updating === lead.id}
+                    className={`bg-white/5 border border-white/10 rounded px-2 py-1.5 outline-none text-xs w-full focus:border-brand-primary ${
+                      lead.status === 'contacted' ? 'text-blue-400' :
+                      lead.status === 'closed' ? 'text-green-400' :
+                      lead.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'
+                    }`}
+                  >
+                    <option value="new">New</option>
+                    <option value="contacted">Contacted</option>
+                    <option value="closed">Closed / Won</option>
+                    <option value="rejected">Rejected / Lost</option>
+                  </select>
+                </td>
+                <td className="px-4 py-4 text-xs whitespace-nowrap">
+                  {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : 'N/A'}
+                </td>
+              </tr>
+            ))}
+            {filteredLeads.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
+                  No leads found matching the filter.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
