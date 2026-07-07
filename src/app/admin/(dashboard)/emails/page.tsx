@@ -32,7 +32,7 @@ export default async function EmailsPage() {
     company: d.company || "Unknown",
     subject: d.subject,
     body: d.body,
-    status: d.status,
+    status: d.status || "pending",
   }));
 
   return (

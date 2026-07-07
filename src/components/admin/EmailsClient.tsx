@@ -16,7 +16,7 @@ type Draft = {
 
 export function EmailsClient({ initialDrafts = [] }: { initialDrafts?: Draft[] }) {
   const [activeTab, setActiveTab] = useState<TabMode>("AI_DRAFTS");
-  const [drafts, setDrafts] = useState<Draft[]>(initialDrafts);
+  const [drafts] = useState<Draft[]>(initialDrafts);
   const [previewEmail, setPreviewEmail] = useState<Draft | null>(null);
 
   const renderBodyWithHighlights = (body: string) => {
