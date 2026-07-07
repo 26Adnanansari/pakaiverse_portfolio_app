@@ -116,6 +116,7 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
                   alert("Error: " + data.error);
                 }
               } catch (err) {
+                console.error("Prospector error:", err);
                 alert("Failed to call Prospector API.");
               } finally {
                 setIsProspecting(false);
