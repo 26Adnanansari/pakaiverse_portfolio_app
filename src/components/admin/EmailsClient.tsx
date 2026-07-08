@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Mail, PenTool, Eye, AlertCircle, X, Loader2, Send } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Mail, PenTool, Eye, AlertCircle, X, Loader2, Send, RefreshCw } from "lucide-react";
 
 type TabMode = "AI_DRAFTS" | "CUSTOM_COMPOSE";
 
@@ -19,6 +19,27 @@ export function EmailsClient({ initialDrafts = [] }: { initialDrafts?: Draft[] }
   const [drafts, setDrafts] = useState<Draft[]>(initialDrafts);
   const [previewEmail, setPreviewEmail] = useState<Draft | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Always fetch fresh drafts from API on mount (fixes stale data from client-side navigation)
+  const fetchDrafts = useCallback(async (showLoader = true) => {
+    if (showLoader) setIsRefreshing(true);
+    try {
+      const res = await fetch("/api/admin/email-drafts");
+      const data = await res.json();
+      if (data.success) {
+        setDrafts(data.drafts);
+      }
+    } catch (err) {
+      console.error("Failed to refresh drafts:", err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDrafts(false); // Silent fetch on mount, no spinner needed
+  }, [fetchDrafts]);
 
   const handleApprove = async (draft: Draft) => {
     if (!confirm(`Send this email to ${draft.prospectName}?`)) return;
@@ -63,28 +84,42 @@ export function EmailsClient({ initialDrafts = [] }: { initialDrafts?: Draft[] }
   return (
     <div className="space-y-6">
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-white/10 pb-4">
+      <div className="flex items-center justify-between border-b border-white/10 pb-4">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveTab("AI_DRAFTS")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+              activeTab === "AI_DRAFTS" 
+                ? "bg-white/10 text-white" 
+                : "text-slate-400 hover:text-white hover:bg-white/5"
+            }`}
+          >
+            <Mail className="w-4 h-4" />
+            AI Drafts
+            {drafts.length > 0 && (
+              <span className="bg-brand-primary text-black text-xs font-bold px-1.5 py-0.5 rounded-full">{drafts.length}</span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab("CUSTOM_COMPOSE")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+              activeTab === "CUSTOM_COMPOSE" 
+                ? "bg-white/10 text-white" 
+                : "text-slate-400 hover:text-white hover:bg-white/5"
+            }`}
+          >
+            <PenTool className="w-4 h-4" />
+            Custom Compose
+          </button>
+        </div>
         <button
-          onClick={() => setActiveTab("AI_DRAFTS")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
-            activeTab === "AI_DRAFTS" 
-              ? "bg-white/10 text-white" 
-              : "text-slate-400 hover:text-white hover:bg-white/5"
-          }`}
+          onClick={() => fetchDrafts(true)}
+          disabled={isRefreshing}
+          className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition disabled:opacity-50"
+          title="Refresh drafts"
         >
-          <Mail className="w-4 h-4" />
-          AI Drafts
-        </button>
-        <button
-          onClick={() => setActiveTab("CUSTOM_COMPOSE")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
-            activeTab === "CUSTOM_COMPOSE" 
-              ? "bg-white/10 text-white" 
-              : "text-slate-400 hover:text-white hover:bg-white/5"
-          }`}
-        >
-          <PenTool className="w-4 h-4" />
-          Custom Compose
+          <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          <span className="hidden sm:inline">Refresh</span>
         </button>
       </div>
 
