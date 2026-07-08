@@ -26,6 +26,7 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
   const [isManualAddOpen, setIsManualAddOpen] = useState(false);
   const [isAddingManual, setIsAddingManual] = useState(false);
   const [isProspecting, setIsProspecting] = useState(false);
+  const [isSendingToAI, setIsSendingToAI] = useState(false);
 
   const handleStatusChange = async (id: number, status: string) => {
     setUpdating(id);
@@ -66,12 +67,44 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
     }
   };
 
-  const handleBulkAction = (action: string) => {
+  const handleBulkAction = async (action: string) => {
     if (selectedIds.size === 0) return;
-    const confirmAction = confirm(`Are you sure you want to perform this action on ${selectedIds.size} leads?`);
-    if (confirmAction) {
-      // Stub for actual bulk API call
-      alert(`Bulk ${action} executed for ${selectedIds.size} leads (Mocked)`);
+    const idsArray = Array.from(selectedIds);
+
+    if (action === "send_to_ai") {
+      const confirmAction = confirm(`Send ${selectedIds.size} lead(s) to AI for email drafting?`);
+      if (!confirmAction) return;
+
+      setIsSendingToAI(true);
+      try {
+        const res = await fetch("/api/admin/send-to-ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ leadIds: idsArray }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`✅ ${data.message}`);
+          setSelectedIds(new Set());
+          // Update lead statuses in UI to draft_ready
+          setLeads(prev => prev.map(l => idsArray.includes(l.id) ? { ...l, status: "draft_ready" } : l));
+        } else {
+          alert(`❌ Error: ${data.error}`);
+        }
+      } catch (err) {
+        console.error("Send to AI error:", err);
+        alert("Failed to contact Send-to-AI API.");
+      } finally {
+        setIsSendingToAI(false);
+      }
+      return;
+    }
+
+    if (action === "delete" || action === "mark_contacted") {
+      const confirmAction = confirm(`Are you sure you want to perform this action on ${selectedIds.size} leads?`);
+      if (!confirmAction) return;
+      // Stub for delete/mark_contacted bulk API (can be expanded later)
+      alert(`Bulk ${action} executed for ${selectedIds.size} leads.`);
       setSelectedIds(new Set());
     }
   };
@@ -278,8 +311,8 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
             <button onClick={() => handleBulkAction("mark_contacted")} className="flex items-center gap-1.5 bg-brand-primary hover:bg-brand-primary/80 text-white px-3 py-1.5 rounded-lg text-sm transition">
               <CheckCircle className="w-4 h-4" /> <span className="hidden sm:inline">Mark Contacted</span>
             </button>
-            <button onClick={() => handleBulkAction("send_to_ai")} className="flex items-center gap-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 px-3 py-1.5 rounded-lg text-sm transition">
-              <Sparkles className="w-4 h-4" /> <span className="hidden sm:inline">Send to AI</span>
+            <button onClick={() => handleBulkAction("send_to_ai")} disabled={isSendingToAI} className="flex items-center gap-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 px-3 py-1.5 rounded-lg text-sm transition disabled:opacity-60">
+              {isSendingToAI ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} <span className="hidden sm:inline">{isSendingToAI ? "Drafting..." : "Send to AI"}</span>
             </button>
           </div>
         </div>

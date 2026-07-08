@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, PenTool, CheckCircle, Eye, AlertCircle, X } from "lucide-react";
+import { Mail, PenTool, Eye, AlertCircle, X, Loader2, Send } from "lucide-react";
 
 type TabMode = "AI_DRAFTS" | "CUSTOM_COMPOSE";
 
@@ -16,8 +16,35 @@ type Draft = {
 
 export function EmailsClient({ initialDrafts = [] }: { initialDrafts?: Draft[] }) {
   const [activeTab, setActiveTab] = useState<TabMode>("AI_DRAFTS");
-  const [drafts] = useState<Draft[]>(initialDrafts);
+  const [drafts, setDrafts] = useState<Draft[]>(initialDrafts);
   const [previewEmail, setPreviewEmail] = useState<Draft | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+
+  const handleApprove = async (draft: Draft) => {
+    if (!confirm(`Send this email to ${draft.prospectName}?`)) return;
+    setApprovingId(draft.id);
+    try {
+      const res = await fetch("/api/admin/approve-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailQueueId: draft.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`✅ Email sent to ${draft.prospectName}!`);
+        setPreviewEmail(null);
+        // Remove from drafts list
+        setDrafts(prev => prev.filter(d => d.id !== draft.id));
+      } else {
+        alert(`❌ Failed: ${data.error}`);
+      }
+    } catch (err) {
+      console.error("Approve error:", err);
+      alert("Failed to approve email.");
+    } finally {
+      setApprovingId(null);
+    }
+  };
 
   const renderBodyWithHighlights = (body: string) => {
     const parts = body.split(/(\{\{[^}]+\}\})/g);
@@ -95,8 +122,13 @@ export function EmailsClient({ initialDrafts = [] }: { initialDrafts?: Draft[] }
                         >
                           <Eye className="w-3.5 h-3.5" /> Preview
                         </button>
-                        <button className="flex items-center justify-center gap-1.5 bg-brand-primary hover:bg-brand-primary/80 text-black px-3 py-1.5 rounded text-xs transition font-bold">
-                          <CheckCircle className="w-3.5 h-3.5" /> Approve
+                        <button 
+                          onClick={() => handleApprove(draft)}
+                          disabled={approvingId === draft.id}
+                          className="flex items-center justify-center gap-1.5 bg-brand-primary hover:bg-brand-primary/80 text-black px-3 py-1.5 rounded text-xs transition font-bold disabled:opacity-60"
+                        >
+                          {approvingId === draft.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                          {approvingId === draft.id ? "Sending..." : "Approve & Send"}
                         </button>
                       </div>
                     </td>
@@ -183,9 +215,13 @@ export function EmailsClient({ initialDrafts = [] }: { initialDrafts?: Draft[] }
               >
                 Close
               </button>
-              <button className="px-4 py-2 text-sm text-white bg-brand-primary hover:bg-brand-primary/80 rounded-lg transition flex items-center gap-2">
-                <CheckCircle className="w-4 h-4" />
-                Approve
+              <button 
+                onClick={() => previewEmail && handleApprove(previewEmail)}
+                disabled={!!approvingId}
+                className="px-4 py-2 text-sm text-black bg-brand-primary hover:bg-brand-primary/80 rounded-lg transition flex items-center gap-2 font-bold disabled:opacity-60"
+              >
+                {approvingId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {approvingId ? "Sending..." : "Approve & Send"}
               </button>
             </div>
           </div>

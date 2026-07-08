@@ -58,12 +58,18 @@ export async function POST(req: Request) {
     }
 
     let insertedCount = 0;
+    let filteredCount = 0;
+    const filterLog: { name: string; reason: string }[] = [];
     const seenPhones = new Set<string>();
     const seenAddresses = new Set<string>();
 
     for (const place of places) {
+      const name = place.displayName?.text || "Unknown Business";
+
       // Filter 1: Must be operational
       if (place.businessStatus !== "OPERATIONAL") {
+        filteredCount++;
+        filterLog.push({ name, reason: `Not operational (${place.businessStatus})` });
         continue;
       }
 
@@ -71,6 +77,8 @@ export async function POST(req: Request) {
       
       // Filter 2: Min reviews threshold
       if (reviewCount < minReviewsThreshold) {
+        filteredCount++;
+        filterLog.push({ name, reason: `Too few reviews (${reviewCount} < ${minReviewsThreshold})` });
         continue;
       }
 
@@ -78,6 +86,8 @@ export async function POST(req: Request) {
       
       // Filter 3: Must have phone number
       if (!phone) {
+        filteredCount++;
+        filterLog.push({ name, reason: "No phone number" });
         continue;
       }
 
@@ -87,13 +97,14 @@ export async function POST(req: Request) {
 
       // Filter 4: Deduplicate by phone or address
       if (seenPhones.has(normalizedPhone) || seenAddresses.has(normalizedAddress)) {
+        filteredCount++;
+        filterLog.push({ name, reason: "Duplicate (same phone or address)" });
         continue;
       }
 
       seenPhones.add(normalizedPhone);
       seenAddresses.add(normalizedAddress);
 
-      const name = place.displayName?.text || "Unknown Business";
       const website = place.websiteUri || "";
       const placeId = place.id;
       const rating = place.rating || 0;
@@ -119,7 +130,13 @@ export async function POST(req: Request) {
       insertedCount++;
     }
 
-    return NextResponse.json({ success: true, count: insertedCount });
+    return NextResponse.json({ 
+      success: true, 
+      count: insertedCount, 
+      filtered: filteredCount,
+      total_found: places.length,
+      filter_log: filterLog,  // So admin can see exactly what was dropped and why
+    });
 
   } catch (error: unknown) {
     console.error("Prospector API Error:", error);
