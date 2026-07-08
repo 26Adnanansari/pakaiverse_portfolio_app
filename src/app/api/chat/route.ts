@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
+import { generateWithFallback } from "@/lib/ai-client";
 
 const SYSTEM_PROMPT = `You are PakAiBot, official AI assistant for PakAiVerse (pakaiverse.com). Founder: Adnan Ansari — AI & Web Developer, Pakistan.
 
@@ -33,174 +34,15 @@ In your FINAL closing message ONLY, do these two things:
 {"name": "Client Name or N/A", "email": "client@email.com or N/A", "phone": "0300... or N/A", "budget": "$... or N/A", "projectType": "Web App... or N/A", "message": "Detailed Project Review Summary..."}
 </SAVE_LEAD>`;
 
-// ─── Provider 1: Google Gemini ────────────────────────────────────────────────
-async function tryGemini(key: string, messages: { role: string; text: string }[]): Promise<string | null> {
-  try {
-    const contents = messages.map((m) => ({
-      role: m.role === "user" ? "user" : "model",
-      parts: [{ text: m.text }],
-    }));
-
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          contents,
-          generationConfig: { temperature: 0.6, maxOutputTokens: 300 },
-        }),
-      }
-    );
-
-    if (res.status === 429 || !res.ok) return null;
-    const data = await res.json();
-    return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-  } catch {
-    return null;
-  }
-}
-
-// ─── Provider 2: Groq (Llama 3.3 70B) ────────────────────────────────────────
-async function tryGroq(key: string, messages: { role: string; text: string }[]): Promise<string | null> {
-  try {
-    const chatMessages = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...messages.map((m) => ({
-        role: m.role === "user" ? "user" : "assistant",
-        content: m.text,
-      })),
-    ];
-
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages: chatMessages,
-        max_tokens: 300,
-        temperature: 0.6,
-      }),
-    });
-
-    if (res.status === 429 || !res.ok) return null;
-    const data = await res.json();
-    return data?.choices?.[0]?.message?.content ?? null;
-  } catch {
-    return null;
-  }
-}
-
-// ─── Provider 3: OpenRouter (Free models) ────────────────────────────────────
-async function tryOpenRouter(key: string, messages: { role: string; text: string }[]): Promise<string | null> {
-  try {
-    const chatMessages = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...messages.map((m) => ({
-        role: m.role === "user" ? "user" : "assistant",
-        content: m.text,
-      })),
-    ];
-
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-        "HTTP-Referer": "https://pakaiverse.com",
-        "X-Title": "PakAiVerse ChatBot",
-      },
-      body: JSON.stringify({
-        model: "meta-llama/llama-3.1-8b-instruct:free",
-        messages: chatMessages,
-        max_tokens: 300,
-        temperature: 0.6,
-      }),
-    });
-
-    if (res.status === 429 || !res.ok) return null;
-    const data = await res.json();
-    return data?.choices?.[0]?.message?.content ?? null;
-  } catch {
-    return null;
-  }
-}
-
-// ─── Provider 4: Cerebras (Llama 3.3 70B) ────────────────────────────────────
-async function tryCerebras(key: string, messages: { role: string; text: string }[]): Promise<string | null> {
-  try {
-    const chatMessages = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...messages.map((m) => ({
-        role: m.role === "user" ? "user" : "assistant",
-        content: m.text,
-      })),
-    ];
-
-    const res = await fetch("https://api.cerebras.ai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b",
-        messages: chatMessages,
-        max_tokens: 300,
-        temperature: 0.6,
-      }),
-    });
-
-    if (res.status === 429 || !res.ok) return null;
-    const data = await res.json();
-    return data?.choices?.[0]?.message?.content ?? null;
-  } catch {
-    return null;
-  }
-}
-
 // ─── Main fallback chain ──────────────────────────────────────────────────────
 async function getAIReply(messages: { role: string; text: string }[]): Promise<string> {
-  const recent = messages.slice(-8);
-
-  // [1] Gemini — primary
-  const geminiKey = process.env.GEMINI_API_KEY_CHAT;
-  if (geminiKey) {
-    const reply = await tryGemini(geminiKey, recent);
-    if (reply) return reply;
-    console.warn("[PakAiBot] Gemini quota hit → trying Groq");
+  try {
+    return await generateWithFallback(messages, SYSTEM_PROMPT);
+  } catch (error) {
+    console.error("[PakAiBot] All AI providers failed:", error);
+    // All failed — friendly message (user won't know it's a limit)
+    return "Abhi thodi busy hoon 😅 Please ek minute mein dobara try karein, ya WhatsApp/email ke zariye hum se directly rabta karein — hum jald respond karen ge!";
   }
-
-  // [2] Groq — Llama 3.3 70B
-  const groqKey = process.env.GROQ_API_KEY;
-  if (groqKey) {
-    const reply = await tryGroq(groqKey, recent);
-    if (reply) return reply;
-    console.warn("[PakAiBot] Groq quota hit → trying OpenRouter");
-  }
-
-  // [3] OpenRouter — free models
-  const openrouterKey = process.env.OPENROUTER_API_KEY;
-  if (openrouterKey) {
-    const reply = await tryOpenRouter(openrouterKey, recent);
-    if (reply) return reply;
-    console.warn("[PakAiBot] OpenRouter quota hit → trying Cerebras");
-  }
-
-  // [4] Cerebras — backup
-  const cerebrasKey = process.env.CEREBRAS_API_KEY;
-  if (cerebrasKey) {
-    const reply = await tryCerebras(cerebrasKey, recent);
-    if (reply) return reply;
-    console.warn("[PakAiBot] Cerebras quota hit → all providers exhausted");
-  }
-
-  // All failed — friendly message (user won't know it's a limit)
-  return "Abhi thodi busy hoon 😅 Please ek minute mein dobara try karein, ya WhatsApp/email ke zariye hum se directly rabta karein — hum jald respond karen ge!";
 }
 
 // ─── Route handler ────────────────────────────────────────────────────────────

@@ -3,43 +3,7 @@ import { db } from "@/db";
 import { leads, emailQueue } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { auth } from "@/auth";
-
-// Try multiple API keys in sequence — fallback if one quota is exhausted
-async function callGemini(prompt: string): Promise<{ text: string } | { error: string }> {
-  const keys = [
-    process.env.GEMINI_API_KEY,
-    process.env.GEMINI_API_KEY_2,
-    process.env.GEMINI_API_KEY_3,
-  ].filter(Boolean) as string[];
-
-  if (keys.length === 0) return { error: "No Gemini API key configured" };
-
-  for (const key of keys) {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.75, maxOutputTokens: 800 },
-        }),
-      }
-    );
-
-    if (response.status === 429) { continue; }
-    if (!response.ok) {
-      const err = await response.text();
-      return { error: `AI failed: ${err.substring(0, 150)}` };
-    }
-
-    const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    return { text };
-  }
-
-  return { error: "All API keys quota exhausted." };
-}
+import { generateWithFallback } from "@/lib/ai-client";
 
 export async function POST(request: Request) {
   try {
@@ -99,15 +63,14 @@ SUBJECT: [your subject here]
 BODY:
 [email body here]`;
 
-      const aiResult = await callGemini(prompt);
-
-      if ("error" in aiResult) {
-        errors.push({ id: lead.id, reason: aiResult.error });
+      let rawText = "";
+      try {
+        rawText = await generateWithFallback(prompt);
+      } catch (aiError: unknown) {
+        const errorMessage = aiError instanceof Error ? aiError.message : "AI fallback chain failed";
+        errors.push({ id: lead.id, reason: errorMessage });
         continue;
       }
-
-      // Parse subject and body from AI output
-      const rawText = aiResult.text.trim();
       const subjectMatch = rawText.match(/^SUBJECT:\s*(.+)/m);
       const bodyMatch = rawText.match(/BODY:\n([\s\S]+)/m);
 
@@ -123,19 +86,31 @@ BODY:
         status: "pending",
       });
 
-      // Update lead status to "draft_ready"
+      // Update lead status to "draft_ready" (only if successful)
       await db.update(leads)
         .set({ status: "draft_ready" })
         .where(eq(leads.id, lead.id));
 
       results.push({ id: lead.id, name: lead.name, subject });
+
+      // Add 1.5s delay to avoid rapid-fire rate limits on the same AI provider
+      // This is crucial since this is a sequential for...of loop processing multiple leads
+      await new Promise(res => setTimeout(res, 1500));
+    }
+
+    if (results.length === 0) {
+      const errorMsg = errors.map(e => `Lead ${e.id}: ${e.reason}`).join(", ");
+      return NextResponse.json({ 
+        success: false, 
+        error: `0 drafts created. Reasons: ${errorMsg || "Unknown error"}` 
+      }, { status: 400 });
     }
 
     return NextResponse.json({
       success: true,
       drafted: results.length,
       errors: errors.length > 0 ? errors : undefined,
-      message: `${results.length} draft(s) created. Go to Emails tab to review and approve.`,
+      message: `${results.length} draft(s) created. ${errors.length > 0 ? `(${errors.length} failed)` : ''} Go to Emails tab to review and approve.`,
     });
 
   } catch (error) {
