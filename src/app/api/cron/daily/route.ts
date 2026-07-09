@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { leads, emailQueue } from "@/db/schema";
 import { eq, and, lte, asc } from "drizzle-orm";
 import { sendEmail } from "@/lib/email";
-import { getBaseEmailTemplate } from "@/lib/email-templates";
+import { getBaseEmailTemplate, getAdminSummaryTemplate } from "@/lib/email-templates";
 
 // Ensure this route is dynamic and handled as a cron job
 export const dynamic = "force-dynamic";
@@ -143,13 +143,15 @@ export async function GET(req: Request) {
     try {
       const adminEmail = process.env.EMAIL_USER || "adnan@mail.pakaiverse.com"; // Fallback to a known admin email
       
-      const summaryHtml = `
-        <h2>Daily Outreach Summary</h2>
-        <p><strong>Total Sent:</strong> ${sentCount}</p>
-        <p><strong>Follow-ups Scheduled:</strong> ${followUpScheduledCount}</p>
-        <p><strong>Failures:</strong> ${errors.length}</p>
-        ${errors.length > 0 ? `<p><strong>Error Details:</strong></p><ul>${errors.map(e => `<li>Task ID ${e.id}: ${e.error}</li>`).join("")}</ul>` : ""}
-      `;
+      const aiFailedLeads = await db.select({ id: leads.id }).from(leads).where(eq(leads.status, "ai-failed"));
+      const aiFailedCount = aiFailedLeads.length;
+
+      const summaryHtml = getAdminSummaryTemplate({
+        sentCount,
+        followUpScheduledCount,
+        errors,
+        aiFailedCount,
+      });
 
       // This is sent independently via our standard email client and does NOT count towards the DB queue limits
       await sendEmail({

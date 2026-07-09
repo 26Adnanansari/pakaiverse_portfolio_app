@@ -2,9 +2,15 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { leads, settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { auth } from "@/auth";
 
 export async function POST(req: Request) {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
     const { country, city, category } = await req.json();
 
     const apiKey = process.env.GOOGLE_PLACES_API_KEY;

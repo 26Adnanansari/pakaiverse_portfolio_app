@@ -69,6 +69,7 @@ BODY:
       } catch (aiError: unknown) {
         const errorMessage = aiError instanceof Error ? aiError.message : "AI fallback chain failed";
         errors.push({ id: lead.id, reason: errorMessage });
+        await db.update(leads).set({ status: "ai-failed" }).where(eq(leads.id, lead.id));
         continue;
       }
       const subjectMatch = rawText.match(/^SUBJECT:\s*(.+)/m);

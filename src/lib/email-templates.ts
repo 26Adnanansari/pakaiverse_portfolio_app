@@ -128,3 +128,24 @@ export const getOutreachEmailHtml = ({
 
   return getBaseEmailTemplate({ content, companyName, leadId });
 };
+
+export const getAdminSummaryTemplate = ({
+  sentCount,
+  followUpScheduledCount,
+  errors,
+  aiFailedCount,
+}: {
+  sentCount: number;
+  followUpScheduledCount: number;
+  errors: { id: number; error: string }[];
+  aiFailedCount: number;
+}) => {
+  return `
+    <h2>Daily Outreach Summary</h2>
+    <p><strong>Total Sent:</strong> ${sentCount}</p>
+    <p><strong>Follow-ups Scheduled:</strong> ${followUpScheduledCount}</p>
+    <p><strong>Failures:</strong> ${errors.length}</p>
+    <p><strong>AI Drafts Failed (Need Manual Retry):</strong> <span style="color:red; font-weight:bold;">${aiFailedCount}</span></p>
+    ${errors.length > 0 ? `<p><strong>Error Details:</strong></p><ul>${errors.map(e => `<li>Task ID ${e.id}: ${e.error}</li>`).join("")}</ul>` : ""}
+  `;
+};

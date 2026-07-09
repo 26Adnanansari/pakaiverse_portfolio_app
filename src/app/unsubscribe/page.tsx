@@ -18,7 +18,7 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
   }
 
   try {
-    const jwtSecret = process.env.WEBHOOK_SECRET || "default_jwt_secret";
+    const jwtSecret = process.env.JWT_SECRET || process.env.WEBHOOK_SECRET || "default_jwt_secret";
     const decoded = jwt.verify(token, jwtSecret) as { lead_id: number };
 
     if (!decoded.lead_id) {

@@ -387,10 +387,15 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
                     className={`bg-white/5 border border-white/10 rounded px-2 py-1.5 outline-none text-xs w-full focus:border-brand-primary ${
                       lead.status === 'contacted' ? 'text-blue-400' :
                       lead.status === 'closed' ? 'text-green-400' :
-                      lead.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'
+                      lead.status === 'rejected' ? 'text-red-400' :
+                      lead.status === 'ai-failed' ? 'text-orange-400' :
+                      lead.status === 'draft_ready' ? 'text-purple-400' : 'text-yellow-400'
                     }`}
                   >
                     <option value="new">New</option>
+                    <option value="enriched">Enriched</option>
+                    <option value="draft_ready">Draft Ready</option>
+                    <option value="ai-failed">AI Failed ⚠️</option>
                     <option value="contacted">Contacted</option>
                     <option value="closed">Closed / Won</option>
                     <option value="rejected">Rejected / Lost</option>

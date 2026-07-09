@@ -11,14 +11,25 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, status } = await request.json();
+    const { id, status, email } = await request.json();
 
-    if (!id || !status) {
-      return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
+    if (!id) {
+      return NextResponse.json({ success: false, error: "Missing lead id" }, { status: 400 });
+    }
+
+    const updates: Record<string, unknown> = {};
+    if (status) updates.status = status;
+    if (email && typeof email === "string" && email.includes("@") && !email.startsWith("pending_enrichment_")) {
+      updates.email = email.trim();
+      if (!status) updates.status = "enriched";
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ success: false, error: "Nothing to update" }, { status: 400 });
     }
 
     await db.update(leads)
-      .set({ status })
+      .set(updates)
       .where(eq(leads.id, id));
 
     return NextResponse.json({ success: true });
