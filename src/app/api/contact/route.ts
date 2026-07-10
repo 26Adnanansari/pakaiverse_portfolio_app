@@ -15,7 +15,8 @@ export async function POST(req: Request) {
       projectType: data.type || data.projectType,
       budget: data.budget || null,
       message: data.message,
-      source: "website",
+      source: "contact-form",
+      status: "enriched",
     }).returning();
     
     // 2. WhatsApp redirect URL

@@ -82,6 +82,7 @@ export async function POST(req: Request) {
           budget: leadData.budget !== "N/A" ? leadData.budget : null,
           message: leadData.message !== "N/A" ? leadData.message : null,
           source: "chatbot",
+          status: "enriched",
         });
 
       } catch (err) {

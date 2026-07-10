@@ -128,7 +128,8 @@ export async function POST(req: Request) {
         email: placeholderEmail,
         phone: phone,
         projectType: category,
-        message: `${qualityFlag}Found via Prospector. Address: ${address}. Website: ${website}. Rating: ${rating} (${reviewCount} reviews)`,
+        message: `${qualityFlag}Found via Prospector. Address: ${address}. Rating: ${rating} (${reviewCount} reviews)`,
+        websiteUrl: website,
         source: "prospector",
         status: "new",
       });

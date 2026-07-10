@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Filter, Trash2, CheckCircle, ChevronDown, CheckSquare, Square, Sparkles, Search, Loader2 } from "lucide-react";
+import { Filter, Trash2, CheckCircle, ChevronDown, CheckSquare, Square, Sparkles, Search, Loader2, Edit2, Globe } from "lucide-react";
 
 type Lead = {
   id: number;
@@ -21,7 +21,12 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
   const [updating, setUpdating] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isSourceFilterOpen, setIsSourceFilterOpen] = useState(false);
+  const [editingEmailId, setEditingEmailId] = useState<number | null>(null);
+  const [editEmailValue, setEditEmailValue] = useState("");
+  const [isScraping, setIsScraping] = useState(false);
   const [isProspectorOpen, setIsProspectorOpen] = useState(false);
   const [isManualAddOpen, setIsManualAddOpen] = useState(false);
   const [isAddingManual, setIsAddingManual] = useState(false);
@@ -86,7 +91,6 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
         if (data.success) {
           alert(`✅ ${data.message}`);
           setSelectedIds(new Set());
-          // Update lead statuses in UI to draft_ready
           setLeads(prev => prev.map(l => idsArray.includes(l.id) ? { ...l, status: "draft_ready" } : l));
         } else {
           alert(`❌ Error: ${data.error}`);
@@ -100,6 +104,44 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
       return;
     }
 
+    if (action === "scrape_emails") {
+      const confirmAction = confirm(`Scrape websites for ${selectedIds.size} selected lead(s) to find emails?`);
+      if (!confirmAction) return;
+
+      setIsScraping(true);
+      try {
+        const res = await fetch("/api/admin/enrich", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ leadIds: idsArray }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`✅ Scraped successfully.`);
+          setSelectedIds(new Set());
+          // Update leads based on results
+          const resultUpdates = new Map<number, { id: number; status: string; email?: string }>(
+            data.results.map((r: { id: number; status: string; email?: string }) => [r.id, r])
+          );
+          setLeads(prev => prev.map(l => {
+            const update = resultUpdates.get(l.id);
+            if (update) {
+              if (update.status === "enriched") return { ...l, email: update.email ?? l.email, status: "enriched" };
+            }
+            return l;
+          }));
+        } else {
+          alert(`❌ Error: ${data.error}`);
+        }
+      } catch (err) {
+        console.error("Scraping error:", err);
+        alert("Failed to contact scraping API.");
+      } finally {
+        setIsScraping(false);
+      }
+      return;
+    }
+
     if (action === "delete" || action === "mark_contacted") {
       const confirmAction = confirm(`Are you sure you want to perform this action on ${selectedIds.size} leads?`);
       if (!confirmAction) return;
@@ -109,7 +151,35 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
     }
   };
 
-  const filteredLeads = leads.filter(l => statusFilter === "all" || l.status === statusFilter);
+  const filteredLeads = leads.filter(l => {
+    const statusMatch = statusFilter === "all" || l.status === statusFilter;
+    const sourceMatch = sourceFilter === "all" || 
+                        (sourceFilter === "inbound" ? (l.source === "chatbot" || l.source === "contact-form") : 
+                        (sourceFilter === "outbound" ? l.source === "prospector" : l.source === sourceFilter));
+    return statusMatch && sourceMatch;
+  });
+
+  const handleSaveEmail = async (id: number) => {
+    setUpdating(id);
+    try {
+      const res = await fetch("/api/admin/leads", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, email: editEmailValue }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLeads(leads.map(l => l.id === id ? { ...l, email: editEmailValue, status: l.status === "new" ? "enriched" : l.status } : l));
+        setEditingEmailId(null);
+      } else {
+        alert("Failed to update email");
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setUpdating(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -295,6 +365,32 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
             </div>
           )}
         </div>
+        <div className="relative">
+          <button 
+            onClick={() => setIsSourceFilterOpen(!isSourceFilterOpen)}
+            className="flex items-center gap-2 bg-[#111118] border border-white/10 hover:bg-white/5 text-slate-300 px-4 py-2 rounded-lg text-sm transition w-full sm:w-auto justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4" />
+              Source: {sourceFilter.charAt(0).toUpperCase() + sourceFilter.slice(1)}
+            </div>
+            <ChevronDown className={`w-4 h-4 transition-transform ${isSourceFilterOpen ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {isSourceFilterOpen && (
+             <div className="absolute top-full left-0 mt-2 w-full sm:w-48 bg-[#111118] border border-white/10 rounded-lg shadow-xl z-10 py-1">
+              {['all', 'inbound', 'outbound', 'manual'].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => { setSourceFilter(s); setIsSourceFilterOpen(false); }}
+                  className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition ${sourceFilter === s ? 'text-white bg-white/5' : 'text-slate-400'}`}
+                >
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Sticky Action Bar */}
@@ -310,6 +406,9 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
             </button>
             <button onClick={() => handleBulkAction("mark_contacted")} className="flex items-center gap-1.5 bg-brand-primary hover:bg-brand-primary/80 text-white px-3 py-1.5 rounded-lg text-sm transition">
               <CheckCircle className="w-4 h-4" /> <span className="hidden sm:inline">Mark Contacted</span>
+            </button>
+            <button onClick={() => handleBulkAction("scrape_emails")} disabled={isScraping} className="flex items-center gap-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 px-3 py-1.5 rounded-lg text-sm transition disabled:opacity-60">
+              {isScraping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />} <span className="hidden sm:inline">{isScraping ? "Scraping..." : "Scrape Emails"}</span>
             </button>
             <button onClick={() => handleBulkAction("send_to_ai")} disabled={isSendingToAI} className="flex items-center gap-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 px-3 py-1.5 rounded-lg text-sm transition disabled:opacity-60">
               {isSendingToAI ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} <span className="hidden sm:inline">{isSendingToAI ? "Drafting..." : "Send to AI"}</span>
@@ -334,6 +433,7 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
               </th>
               <th className="px-4 py-3">Contact Info</th>
               <th className="px-4 py-3">Project Details</th>
+              <th className="px-4 py-3">Source</th>
               <th className="px-4 py-3 max-w-xs">Message</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Date</th>
@@ -357,10 +457,35 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
                     )}
                   </div>
                   {/* TODO: Add dedicated is_enriched boolean column to DB for long-term robustness */}
-                  {lead.email.includes("pending_enrichment_") ? (
-                    <div className="text-xs mt-1 mb-1 bg-slate-800/80 text-slate-400 border border-slate-700 rounded px-2 py-0.5 inline-block">Not Enriched Yet</div>
+                  {editingEmailId === lead.id ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <input 
+                        type="text" 
+                        value={editEmailValue} 
+                        onChange={(e) => setEditEmailValue(e.target.value)} 
+                        className="bg-[#0A0A0F] border border-white/20 rounded px-2 py-1 text-xs text-white w-full outline-none focus:border-brand-primary"
+                        placeholder="Enter real email..."
+                        autoFocus
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleSaveEmail(lead.id) }}
+                      />
+                      <button onClick={() => handleSaveEmail(lead.id)} disabled={updating === lead.id} className="text-green-400 hover:text-green-300">
+                        {updating === lead.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  ) : lead.email.includes("pending_enrichment_") ? (
+                    <div className="flex items-center gap-2 mt-1 mb-1">
+                      <div className="text-xs bg-slate-800/80 text-slate-400 border border-slate-700 rounded px-2 py-0.5 inline-block">Not Enriched Yet</div>
+                      <button onClick={() => { setEditingEmailId(lead.id); setEditEmailValue(""); }} className="text-slate-500 hover:text-brand-primary transition">
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   ) : (
-                    <div className="text-xs text-slate-400 mb-1 mt-1">{lead.email}</div>
+                    <div className="flex items-center gap-2 text-xs text-slate-400 mb-1 mt-1 group">
+                      {lead.email}
+                      <button onClick={() => { setEditingEmailId(lead.id); setEditEmailValue(lead.email); }} className="text-slate-500 hover:text-brand-primary transition opacity-0 group-hover:opacity-100">
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   )}
                   {lead.phone ? (
                     <div className="flex items-center gap-2">
@@ -373,6 +498,13 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
                 <td className="px-4 py-4">
                   <div className="font-bold text-brand-secondary">{lead.projectType || "N/A"}</div>
                   <div className="text-xs mt-1"><span className="text-slate-500">Budget:</span> {lead.budget || "N/A"}</div>
+                </td>
+                <td className="px-4 py-4">
+                  {(lead.source === "chatbot" || lead.source === "contact-form") ? (
+                    <span className="bg-yellow-500/20 text-yellow-400 text-xs px-2 py-1 rounded-md border border-yellow-500/30 font-medium">Inbound ⭐</span>
+                  ) : (
+                    <span className="text-xs text-slate-400 capitalize">{lead.source || "Unknown"}</span>
+                  )}
                 </td>
                 <td className="px-4 py-4 max-w-xs">
                   <div className="text-xs text-slate-300 line-clamp-3" title={lead.message || ""}>

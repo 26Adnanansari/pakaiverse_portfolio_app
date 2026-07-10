@@ -22,6 +22,7 @@ export const leads = pgTable("leads", {
   projectType: varchar("project_type", { length: 100 }),
   budget: varchar("budget", { length: 50 }),
   message: text("message"),
+  websiteUrl: text("website_url"),
   source: varchar("source", { length: 50 }).default("website"),
   status: varchar("status", { length: 50 }).default("new"),
   suppressList: boolean("suppress_list").default(false),
