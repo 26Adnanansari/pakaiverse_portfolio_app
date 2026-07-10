@@ -1,8 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { MessageSquare, CheckCircle, XCircle, Pencil, ChevronDown, ChevronUp, Sparkles, User } from "lucide-react";
+import { useState, useEffect } from "react";
+import { MessageSquare, CheckCircle, Pencil, ChevronDown, ChevronUp, Sparkles, User, RefreshCw } from "lucide-react";
 
+type DbReply = {
+  id: number;
+  leadId: number;
+  content: string;
+  sentiment: "interested" | "neutral" | "not_interested";
+  aiSuggestedResponse: string | null;
+  status: string;
+  receivedAt: string;
+  leadName: string | null;
+  leadEmail: string | null;
+  leadProjectType: string | null;
+};
+
+// Map DB reply to UI reply
 type Reply = {
   id: number;
   prospectName: string;
@@ -15,53 +29,6 @@ type Reply = {
   receivedAt: string;
 };
 
-const MOCK_REPLIES: Reply[] = [
-  {
-    id: 1,
-    prospectName: "Ahmed Raza",
-    company: "TechFlow Pvt Ltd",
-    email: "ahmed@techflow.com",
-    sentiment: "interested",
-    originalMessage: "Thanks for reaching out! We've actually been looking for an AI partner. Can we schedule a call this week?",
-    replyBody: "Absolutely interested! Please send over a proposal.",
-    suggestedResponse: "Hi Ahmed,\n\nGreat to hear from you! I'd love to set up a call — are you available Thursday or Friday this week?\n\nBest,\nPakAiVerse Team",
-    receivedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 2,
-    prospectName: "Sara Khan",
-    company: "Nova Systems",
-    email: "sara@novasys.io",
-    sentiment: "interested",
-    originalMessage: "Yes! We need this for our Q3 roadmap. What are your rates?",
-    replyBody: "Send pricing please.",
-    suggestedResponse: "Hi Sara,\n\nThank you for your interest! Our pricing depends on the scope — I'll send a detailed breakdown shortly.\n\nBest,\nPakAiVerse Team",
-    receivedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 3,
-    prospectName: "Bilal Mirza",
-    company: "Crescent Corp",
-    email: "bilal@crescent.com",
-    sentiment: "neutral",
-    originalMessage: "I'll forward this to our CTO. Not sure if we have budget right now.",
-    replyBody: "We'll keep this on file.",
-    suggestedResponse: "Hi Bilal,\n\nThank you! Please do share with your CTO — I'm happy to answer any technical questions.\n\nBest,\nPakAiVerse Team",
-    receivedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 4,
-    prospectName: "Zainab Hussain",
-    company: "Orbit Digital",
-    email: "zainab@orbit.pk",
-    sentiment: "not_interested",
-    originalMessage: "Thanks but we have an in-house team. Not looking for external partners.",
-    replyBody: "Not interested, please remove from list.",
-    suggestedResponse: "",
-    receivedAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-  },
-];
-
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
   const h = Math.floor(diff / 3600000);
@@ -71,16 +38,51 @@ function timeAgo(iso: string) {
 }
 
 export function RepliesClient() {
-  const [replies, setReplies] = useState<Reply[]>(
-    [...MOCK_REPLIES].sort((a, b) => {
-      // Sort: interested first, then neutral, then not_interested
-      const order = { interested: 0, neutral: 1, not_interested: 2 };
-      return order[a.sentiment] - order[b.sentiment];
-    })
-  );
+  const [replies, setReplies] = useState<Reply[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editedResponse, setEditedResponse] = useState<string>("");
+
+  const fetchReplies = async () => {
+    try {
+      setRefreshing(true);
+      const res = await fetch("/api/admin/replies");
+      const data = await res.json();
+      if (data.success && data.replies) {
+        const mapped: Reply[] = data.replies.map((r: DbReply) => ({
+          id: r.id,
+          prospectName: r.leadName || "Unknown",
+          company: r.leadProjectType || "Unknown Project",
+          email: r.leadEmail || "Unknown",
+          sentiment: r.sentiment || "neutral",
+          originalMessage: "Previous email thread...", // We don't store original email in replies table yet
+          replyBody: r.content,
+          suggestedResponse: r.aiSuggestedResponse || "",
+          receivedAt: r.receivedAt,
+        }));
+        
+        // Sort interested first
+        mapped.sort((a, b) => {
+          const order = { interested: 0, neutral: 1, not_interested: 2 };
+          return order[a.sentiment] - order[b.sentiment];
+        });
+        
+        setReplies(mapped);
+      }
+    } catch (error) {
+      console.error("Failed to fetch replies", error);
+      alert("Failed to fetch replies");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReplies();
+  }, []);
 
   const sentimentConfig = {
     interested: {
@@ -109,154 +111,196 @@ export function RepliesClient() {
     setExpandedId(reply.id);
   };
 
-  const saveEdit = (id: number) => {
-    setReplies(prev => prev.map(r => r.id === id ? { ...r, suggestedResponse: editedResponse } : r));
-    setEditingId(null);
+  const saveEdit = async (id: number) => {
+    try {
+      const res = await fetch("/api/admin/replies", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, aiSuggestedResponse: editedResponse })
+      });
+      if (res.ok) {
+        setReplies(prev => prev.map(r => r.id === id ? { ...r, suggestedResponse: editedResponse } : r));
+        alert("Draft updated");
+      } else {
+        alert("Failed to update");
+      }
+    } catch {
+      alert("Error saving");
+    } finally {
+      setEditingId(null);
+    }
   };
 
-  const markSent = (id: number) => {
-    setReplies(prev => prev.filter(r => r.id !== id));
+  const markSent = async (id: number) => {
+    try {
+      const res = await fetch("/api/admin/replies", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: "handled" })
+      });
+      if (res.ok) {
+        setReplies(prev => prev.filter(r => r.id !== id));
+        alert("Marked as handled");
+      } else {
+        alert("Failed to mark handled");
+      }
+    } catch {
+      alert("Error marking handled");
+    }
   };
+
+  if (loading) {
+    return <div className="text-slate-400 animate-pulse">Loading replies...</div>;
+  }
 
   return (
     <div className="space-y-4">
-      {/* Legend */}
-      <div className="flex items-center gap-4 text-xs text-slate-400 flex-wrap">
-        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Interested</div>
-        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400"></span> Neutral</div>
-        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400"></span> Not Interested</div>
+      {/* Legend & Controls */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4 text-xs text-slate-400 flex-wrap">
+          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Interested</div>
+          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400"></span> Neutral</div>
+          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400"></span> Not Interested</div>
+        </div>
+        <button 
+          onClick={fetchReplies} 
+          disabled={refreshing}
+          className="flex items-center gap-2 text-sm bg-brand-surface border border-white/10 px-3 py-1.5 rounded-lg hover:bg-white/5 transition"
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </button>
       </div>
 
       {/* Reply Cards */}
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-4">
         {replies.length === 0 && (
-          <div className="text-center py-16 text-slate-500 bg-white/[0.02] border border-white/10 rounded-xl">
-            <MessageSquare className="w-8 h-8 mx-auto mb-3 opacity-30" />
-            <p>No replies yet — send some emails first!</p>
+          <div className="text-center py-12 bg-brand-surface border border-white/5 rounded-xl text-slate-400">
+            <MessageSquare className="w-8 h-8 mx-auto mb-3 opacity-20" />
+            <p>No pending replies!</p>
           </div>
         )}
 
         {replies.map((reply) => {
-          const cfg = sentimentConfig[reply.sentiment];
           const isExpanded = expandedId === reply.id;
           const isEditing = editingId === reply.id;
+          const cfg = sentimentConfig[reply.sentiment];
 
           return (
-            <div
-              key={reply.id}
-              className={`border rounded-xl transition-all duration-300 overflow-hidden ${cfg.card}`}
-            >
-              {/* Card Header */}
-              <div
-                className="flex items-center justify-between p-4 cursor-pointer"
-                onClick={() => setExpandedId(isExpanded ? null : reply.id)}
+            <div key={reply.id} className={`rounded-xl border ${cfg.card} transition-all duration-300`}>
+              {/* Header */}
+              <div 
+                className="p-4 flex items-center justify-between cursor-pointer"
+                onClick={() => !isEditing && setExpandedId(isExpanded ? null : reply.id)}
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  {/* Pulse dot for interested */}
-                  {cfg.pulse && (
-                    <span className="relative flex-shrink-0">
-                      <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-50 animate-ping"></span>
-                      <span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-                    </span>
-                  )}
-
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-white text-sm">{reply.prospectName}</span>
-                      <span className="text-slate-500 text-xs">— {reply.company}</span>
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10 shrink-0">
+                    <User className="w-5 h-5 text-slate-400" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-white">{reply.prospectName}</h3>
+                      <span className="text-xs text-slate-500">({reply.company})</span>
                     </div>
-                    <p className="text-xs text-slate-400 truncate mt-0.5 max-w-xs sm:max-w-sm">
-                      &ldquo;{reply.originalMessage}&rdquo;
-                    </p>
+                    <p className="text-sm text-slate-400">{reply.email}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 flex-shrink-0 ml-3">
-                  <span className={`hidden sm:inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${cfg.badge}`}>
+                <div className="flex items-center gap-4">
+                  <div className={`px-2.5 py-1 rounded-full text-xs flex items-center gap-1.5 ${cfg.badge}`}>
+                    {cfg.pulse && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>}
                     {cfg.label}
-                  </span>
-                  <span className="text-xs text-slate-500">{timeAgo(reply.receivedAt)}</span>
-                  {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                  </div>
+                  <div className="text-xs text-slate-500 w-16 text-right">
+                    {timeAgo(reply.receivedAt)}
+                  </div>
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
                 </div>
               </div>
 
-              {/* Expanded Content */}
+              {/* Body (Expanded) */}
               {isExpanded && (
-                <div className="px-4 pb-4 border-t border-white/10 pt-4 space-y-4">
-                  {/* Original reply from prospect */}
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-slate-400 flex items-center gap-1.5">
-                      <User className="w-3 h-3" /> Their Reply
-                    </p>
-                    <div className="bg-white/5 rounded-lg p-3 text-sm text-slate-200 leading-relaxed">
-                      {reply.originalMessage}
+                <div className="px-4 pb-4 border-t border-white/5 pt-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Left: Email Thread */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Email Thread</h4>
+                      
+                      {/* Received Reply */}
+                      <div className="bg-[#1e1e2d] border border-white/10 rounded-lg p-4 relative">
+                        <div className="absolute -left-2 top-4 w-1 h-8 bg-blue-500 rounded-r-md"></div>
+                        <p className="text-sm text-slate-200 whitespace-pre-wrap">{reply.replyBody}</p>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* AI Suggested Response */}
-                  {reply.sentiment !== "not_interested" && reply.suggestedResponse && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-slate-400 flex items-center gap-1.5">
-                        <Sparkles className="w-3 h-3 text-brand-primary" /> AI Suggested Response
-                      </p>
+                    {/* Right: AI Draft */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-brand-primary" />
+                          AI Suggested Response
+                        </h4>
+                        {!isEditing && reply.suggestedResponse && (
+                          <button onClick={() => startEdit(reply)} className="text-xs text-slate-400 hover:text-white flex items-center gap-1">
+                            <Pencil className="w-3 h-3" /> Edit
+                          </button>
+                        )}
+                      </div>
 
                       {isEditing ? (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           <textarea
                             value={editedResponse}
                             onChange={(e) => setEditedResponse(e.target.value)}
-                            rows={5}
-                            className="w-full bg-[#0A0A0F] border border-brand-primary/50 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-primary resize-y"
+                            className="w-full h-40 bg-black/40 border border-brand-primary/30 rounded-lg p-3 text-sm text-slate-200 focus:outline-none focus:border-brand-primary resize-none"
                           />
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => saveEdit(reply.id)}
-                              className="flex items-center gap-1.5 bg-brand-primary hover:bg-brand-primary/80 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition"
-                            >
-                              <CheckCircle className="w-3.5 h-3.5" /> Save Edit
-                            </button>
-                            <button
+                          <div className="flex justify-end gap-2">
+                            <button 
                               onClick={() => setEditingId(null)}
-                              className="bg-white/5 hover:bg-white/10 text-slate-300 px-4 py-1.5 rounded-lg text-xs transition"
+                              className="px-3 py-1.5 text-xs text-slate-400 hover:text-white bg-white/5 rounded-md"
                             >
                               Cancel
+                            </button>
+                            <button 
+                              onClick={() => saveEdit(reply.id)}
+                              className="px-3 py-1.5 text-xs text-brand-bg font-semibold bg-brand-primary hover:bg-brand-primary/90 rounded-md shadow-[0_0_10px_rgba(0,212,255,0.2)]"
+                            >
+                              Save Draft
                             </button>
                           </div>
                         </div>
                       ) : (
-                        <div className="bg-[#0A0A0F] border border-white/10 rounded-lg p-3 text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
-                          {reply.suggestedResponse}
+                        <div className="bg-brand-bg border border-white/5 rounded-lg p-4 h-full min-h-[160px]">
+                          {reply.suggestedResponse ? (
+                            <p className="text-sm text-slate-300 whitespace-pre-wrap">{reply.suggestedResponse}</p>
+                          ) : (
+                            <p className="text-sm text-slate-500 italic">No AI response generated for this sentiment.</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      {!isEditing && (
+                        <div className="flex justify-end gap-3 pt-2">
+                          <button 
+                            onClick={() => markSent(reply.id)}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 text-sm rounded-lg transition"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                            Mark as Handled
+                          </button>
+                          
+                          {reply.suggestedResponse && (
+                            <a 
+                              href={`mailto:${reply.email}?subject=Re: PakAiVerse Inquiry&body=${encodeURIComponent(reply.suggestedResponse)}`}
+                              className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-brand-primary to-brand-secondary text-brand-bg font-semibold text-sm rounded-lg shadow-lg hover:shadow-brand-primary/25 transition"
+                            >
+                              Send via Gmail
+                            </a>
+                          )}
                         </div>
                       )}
                     </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 pt-1 flex-wrap">
-                    {reply.sentiment !== "not_interested" && (
-                      <>
-                        {!isEditing && (
-                          <button
-                            onClick={() => startEdit(reply)}
-                            className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 text-slate-300 px-3 py-1.5 rounded-lg text-xs transition"
-                          >
-                            <Pencil className="w-3.5 h-3.5" /> Edit Response
-                          </button>
-                        )}
-                        <button
-                          onClick={() => markSent(reply.id)}
-                          className="flex items-center gap-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-medium transition"
-                        >
-                          <CheckCircle className="w-3.5 h-3.5" /> Mark as Replied
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => markSent(reply.id)}
-                      className="flex items-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 px-3 py-1.5 rounded-lg text-xs transition ml-auto"
-                    >
-                      <XCircle className="w-3.5 h-3.5" /> Dismiss
-                    </button>
                   </div>
                 </div>
               )}
