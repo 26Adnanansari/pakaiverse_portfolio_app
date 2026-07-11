@@ -11,7 +11,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const { country, city, category } = await req.json();
+    const { location, category, radius = 2500, websiteStatus = "any", openNow = false } = await req.json();
+
+    if (!location || !category) {
+      return NextResponse.json({ success: false, error: "location and category are required" }, { status: 400 });
+    }
 
     const apiKey = process.env.GOOGLE_PLACES_API_KEY;
     
@@ -33,7 +37,39 @@ export async function POST(req: Request) {
       console.warn("Failed to fetch min_reviews_threshold from settings, using default.", e);
     }
 
-    const searchQuery = `${category} in ${city ? city + ", " : ""}${country}`;
+    const searchQuery = `${category} in ${location}`;
+
+    // Build the request body for Google Places Text Search API
+    const requestBody: Record<string, unknown> = {
+      textQuery: searchQuery,
+      languageCode: "en",
+      maxResultCount: 20,
+      locationBias: {
+        circle: {
+          // We pass radius as a location bias around the queried location.
+          // Google Places resolves the text query center — no lat/lng needed.
+          radius: Number(radius),
+        },
+      },
+    };
+
+    if (openNow) {
+      requestBody.openNow = true;
+    }
+
+    // Field masking: only request fields we actually use (keeps billing in Basic tier)
+    const fieldMask = [
+      "places.displayName",
+      "places.websiteUri",
+      "places.internationalPhoneNumber",
+      "places.formattedAddress",
+      "places.businessStatus",
+      "places.rating",
+      "places.userRatingCount",
+      "places.id",
+    ].join(",");
+
+    console.log("[Prospector] Request →", JSON.stringify({ searchQuery, radius, websiteStatus, openNow, fieldMask }));
 
     // Call Google Places Text Search API
     const response = await fetch("https://places.googleapis.com/v1/places:searchText", {
@@ -41,26 +77,22 @@ export async function POST(req: Request) {
       headers: {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.websiteUri,places.nationalPhoneNumber,places.id,places.businessStatus,places.userRatingCount,places.rating"
+        "X-Goog-FieldMask": fieldMask,
       },
-      body: JSON.stringify({
-        textQuery: searchQuery,
-        languageCode: "en",
-        maxResultCount: 20, // Increased to max allowed per request
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     const data = await response.json();
 
     if (!response.ok) {
       console.error("Google Places API Error:", data);
-      return NextResponse.json({ success: false, error: "Failed to fetch from Google Places API" }, { status: 500 });
+      return NextResponse.json({ success: false, error: "Failed to fetch from Google Places API", details: data }, { status: 500 });
     }
 
     const places = data.places || [];
 
     if (places.length === 0) {
-      return NextResponse.json({ success: true, count: 0, message: "No places found" });
+      return NextResponse.json({ success: true, count: 0, total_found: 0, filtered: 0, message: "No places found for this search." });
     }
 
     let insertedCount = 0;
@@ -71,8 +103,23 @@ export async function POST(req: Request) {
 
     for (const place of places) {
       const name = place.displayName?.text || "Unknown Business";
+      const website = place.websiteUri || "";
 
-      // Filter 1: Must be operational
+      // -------------------------------------------------------
+      // FILTER: Website Status (3-way)
+      // -------------------------------------------------------
+      if (websiteStatus === "no_website" && website) {
+        filteredCount++;
+        filterLog.push({ name, reason: "Has website (excluded by No Website filter)" });
+        continue;
+      }
+      if (websiteStatus === "has_website" && !website) {
+        filteredCount++;
+        filterLog.push({ name, reason: "No website (excluded by Has Website filter)" });
+        continue;
+      }
+
+      // Filter: Must be operational
       if (place.businessStatus !== "OPERATIONAL") {
         filteredCount++;
         filterLog.push({ name, reason: `Not operational (${place.businessStatus})` });
@@ -81,16 +128,17 @@ export async function POST(req: Request) {
 
       const reviewCount = place.userRatingCount || 0;
       
-      // Filter 2: Min reviews threshold
+      // Filter: Min reviews threshold
       if (reviewCount < minReviewsThreshold) {
         filteredCount++;
         filterLog.push({ name, reason: `Too few reviews (${reviewCount} < ${minReviewsThreshold})` });
         continue;
       }
 
-      const phone = place.nationalPhoneNumber || "";
+      // Use internationalPhoneNumber (e.g. +1 512-555-0199) for cross-border searches
+      const phone = place.internationalPhoneNumber || "";
       
-      // Filter 3: Must have phone number
+      // Filter: Must have phone number
       if (!phone) {
         filteredCount++;
         filterLog.push({ name, reason: "No phone number" });
@@ -98,10 +146,10 @@ export async function POST(req: Request) {
       }
 
       const address = place.formattedAddress || "";
-      const normalizedPhone = phone.replace(/\D/g, '');
+      const normalizedPhone = phone.replace(/\D/g, "");
       const normalizedAddress = address.toLowerCase().trim();
 
-      // Filter 4: Deduplicate by phone or address
+      // Filter: Deduplicate by phone or address
       if (seenPhones.has(normalizedPhone) || seenAddresses.has(normalizedAddress)) {
         filteredCount++;
         filterLog.push({ name, reason: "Duplicate (same phone or address)" });
@@ -111,7 +159,6 @@ export async function POST(req: Request) {
       seenPhones.add(normalizedPhone);
       seenAddresses.add(normalizedAddress);
 
-      const website = place.websiteUri || "";
       const placeId = place.id;
       const rating = place.rating || 0;
 
@@ -120,7 +167,7 @@ export async function POST(req: Request) {
         qualityFlag = "[Low-Review-High-Rating] ";
       }
       
-      // Google places doesn't return emails, we use a placeholder that clearly indicates pending enrichment
+      // Google places doesn't return emails — placeholder for enrichment
       const placeholderEmail = `pending_enrichment_${placeId}@pakaiverse.local`;
 
       await db.insert(leads).values({
@@ -128,7 +175,7 @@ export async function POST(req: Request) {
         email: placeholderEmail,
         phone: phone,
         projectType: category,
-        message: `${qualityFlag}Found via Prospector. Address: ${address}. Rating: ${rating} (${reviewCount} reviews)`,
+        message: `${qualityFlag}Found via Prospector. Location: ${location}. Address: ${address}. Rating: ${rating} (${reviewCount} reviews). Website: ${website || "none"}`,
         websiteUrl: website,
         source: "prospector",
         status: "new",
@@ -142,7 +189,7 @@ export async function POST(req: Request) {
       count: insertedCount, 
       filtered: filteredCount,
       total_found: places.length,
-      filter_log: filterLog,  // So admin can see exactly what was dropped and why
+      filter_log: filterLog,
     });
 
   } catch (error: unknown) {
