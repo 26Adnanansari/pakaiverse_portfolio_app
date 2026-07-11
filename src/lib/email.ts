@@ -32,6 +32,7 @@ export async function sendEmail({
           from: `PakAiVerse <${fromEmail}>`,
           to,
           subject,
+          reply_to: "replies@replies.pakaiverse.com",
           html,
         }),
       });
@@ -59,6 +60,7 @@ export async function sendEmail({
       from: `"PakAiVerse" <${fromEmail}>`,
       to,
       subject,
+      replyTo: "replies@replies.pakaiverse.com",
       html,
     });
     return { success: true, messageId: info.messageId };
