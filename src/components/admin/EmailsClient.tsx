@@ -20,6 +20,10 @@ export function EmailsClient({ initialDrafts = [] }: { initialDrafts?: Draft[] }
   const [previewEmail, setPreviewEmail] = useState<Draft | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [customSubject, setCustomSubject] = useState("");
+  const [customBody, setCustomBody] = useState("");
+  const [customRecipientEmail, setCustomRecipientEmail] = useState("");
+  const [isSavingCustom, setIsSavingCustom] = useState(false);
 
   // Always fetch fresh drafts from API on mount (fixes stale data from client-side navigation)
   const fetchDrafts = useCallback(async (showLoader = true) => {
@@ -64,6 +68,41 @@ export function EmailsClient({ initialDrafts = [] }: { initialDrafts?: Draft[] }
       alert("Failed to approve email.");
     } finally {
       setApprovingId(null);
+    }
+  };
+
+  const handleSaveCustomDraft = async () => {
+    if (!customSubject || !customBody || !customRecipientEmail) {
+      alert("Please fill in recipient email, subject, and body.");
+      return;
+    }
+    setIsSavingCustom(true);
+    try {
+      const res = await fetch("/api/admin/custom-compose", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipientEmail: customRecipientEmail,
+          subject: customSubject,
+          body: customBody
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("Draft saved!");
+        setCustomSubject("");
+        setCustomBody("");
+        setCustomRecipientEmail("");
+        fetchDrafts();
+        setActiveTab("AI_DRAFTS");
+      } else {
+        alert("Error saving draft: " + data.error);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save draft.");
+    } finally {
+      setIsSavingCustom(false);
     }
   };
 
@@ -186,9 +225,21 @@ export function EmailsClient({ initialDrafts = [] }: { initialDrafts?: Draft[] }
         <div className="bg-white/5 border border-white/10 rounded-xl p-6 space-y-6">
           <div className="space-y-4">
             <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Recipient Email</label>
+              <input 
+                type="email" 
+                value={customRecipientEmail}
+                onChange={(e) => setCustomRecipientEmail(e.target.value)}
+                placeholder="Enter recipient email..."
+                className="w-full bg-[#111118] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-brand-primary"
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">Subject</label>
               <input 
                 type="text" 
+                value={customSubject}
+                onChange={(e) => setCustomSubject(e.target.value)}
                 placeholder="Enter email subject..."
                 className="w-full bg-[#111118] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-brand-primary"
               />
@@ -197,6 +248,8 @@ export function EmailsClient({ initialDrafts = [] }: { initialDrafts?: Draft[] }
               <label className="block text-sm font-medium text-slate-300 mb-1">Body</label>
               <textarea 
                 rows={8}
+                value={customBody}
+                onChange={(e) => setCustomBody(e.target.value)}
                 placeholder="Write your email here..."
                 className="w-full bg-[#111118] border border-white/10 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-brand-primary resize-y"
               />
@@ -208,8 +261,13 @@ export function EmailsClient({ initialDrafts = [] }: { initialDrafts?: Draft[] }
               <AlertCircle className="w-4 h-4" />
               Custom compose emails will be wrapped in the standard CAN-SPAM footer upon sending.
             </div>
-            <button className="bg-white/10 hover:bg-white/20 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition">
-              Save as Draft
+            <button 
+              onClick={handleSaveCustomDraft}
+              disabled={isSavingCustom}
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-60"
+            >
+              {isSavingCustom ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {isSavingCustom ? "Saving..." : "Save as Draft"}
             </button>
           </div>
         </div>

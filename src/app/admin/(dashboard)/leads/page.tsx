@@ -22,6 +22,7 @@ export default async function AdminLeadsPage() {
   const serializedLeads = allLeads.map((lead) => ({
     ...lead,
     createdAt: lead.createdAt ? lead.createdAt.toISOString() : null,
+    lastEmailedAt: lead.lastEmailedAt ? lead.lastEmailedAt.toISOString() : null,
   }));
 
   return (

@@ -11,8 +11,10 @@ type Lead = {
   projectType: string | null;
   budget: string | null;
   message: string | null;
+  contextNotes: string | null;
   source: string | null;
   status: string | null;
+  lastEmailedAt: string | null;
   createdAt: string | null;
 };
 
@@ -26,6 +28,12 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
   const [isSourceFilterOpen, setIsSourceFilterOpen] = useState(false);
   const [editingEmailId, setEditingEmailId] = useState<number | null>(null);
   const [editEmailValue, setEditEmailValue] = useState("");
+  const [editingNotesId, setEditingNotesId] = useState<number | null>(null);
+  const [editNotesValue, setEditNotesValue] = useState("");
+  const [savingNotes, setSavingNotes] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortCol, setSortCol] = useState<string>("createdAt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [isScraping, setIsScraping] = useState(false);
   const [isProspectorOpen, setIsProspectorOpen] = useState(false);
   const [isManualAddOpen, setIsManualAddOpen] = useState(false);
@@ -154,13 +162,66 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
     }
   };
 
-  const filteredLeads = leads.filter(l => {
-    const statusMatch = statusFilter === "all" || l.status === statusFilter;
-    const sourceMatch = sourceFilter === "all" || 
-                        (sourceFilter === "inbound" ? (l.source === "chatbot" || l.source === "contact-form") : 
-                        (sourceFilter === "outbound" ? l.source === "prospector" : l.source === sourceFilter));
-    return statusMatch && sourceMatch;
-  });
+  const handleSaveNotes = async (id: number) => {
+    setSavingNotes(id);
+    try {
+      const res = await fetch("/api/admin/leads", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, contextNotes: editNotesValue }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLeads(leads.map(l => l.id === id ? { ...l, contextNotes: editNotesValue } : l));
+        setEditingNotesId(null);
+      } else {
+        alert("Failed to save notes");
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setSavingNotes(null);
+    }
+  };
+
+  const toggleSort = (col: string) => {
+    if (sortCol === col) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortCol(col);
+      setSortDir("asc");
+    }
+  };
+
+  const filteredLeads = leads
+    .filter(l => {
+      const statusMatch = statusFilter === "all" || l.status === statusFilter;
+      const sourceMatch = sourceFilter === "all" ||
+        (sourceFilter === "inbound" ? (l.source === "chatbot" || l.source === "contact-form") :
+          (sourceFilter === "outbound" ? l.source === "prospector" : l.source === sourceFilter));
+      const q = searchQuery.toLowerCase();
+      const searchMatch = !q ||
+        (l.name || "").toLowerCase().includes(q) ||
+        l.email.toLowerCase().includes(q) ||
+        (l.projectType || "").toLowerCase().includes(q) ||
+        (l.message || "").toLowerCase().includes(q);
+      return statusMatch && sourceMatch && searchMatch;
+    })
+    .sort((a, b) => {
+      const dir = sortDir === "asc" ? 1 : -1;
+      if (sortCol === "name") return dir * ((a.name || "").localeCompare(b.name || ""));
+      if (sortCol === "status") return dir * ((a.status || "").localeCompare(b.status || ""));
+      if (sortCol === "projectType") return dir * ((a.projectType || "").localeCompare(b.projectType || ""));
+      if (sortCol === "lastEmailedAt") {
+        const ta = a.lastEmailedAt ? new Date(a.lastEmailedAt).getTime() : 0;
+        const tb = b.lastEmailedAt ? new Date(b.lastEmailedAt).getTime() : 0;
+        return dir * (ta - tb);
+      }
+      // default: createdAt
+      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dir * (ta - tb);
+    });
 
   const handleSaveEmail = async (id: number) => {
     setUpdating(id);
@@ -410,7 +471,7 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">Notes / Context</label>
-              <textarea name="message" rows={3} className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-brand-primary" />
+              <textarea name="contextNotes" rows={3} className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-brand-primary" />
             </div>
             <div className="pt-4 border-t border-white/10 flex justify-end">
               <button 
@@ -481,6 +542,16 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
             </div>
           )}
         </div>
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search leads..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-[#111118] border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-brand-primary transition"
+          />
+        </div>
       </div>
 
       {/* Sticky Action Bar */}
@@ -521,12 +592,12 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
                   )}
                 </button>
               </th>
-              <th className="px-4 py-3">Contact Info</th>
-              <th className="px-4 py-3">Project Details</th>
+              <th className="px-4 py-3 cursor-pointer hover:text-white transition" onClick={() => toggleSort("name")}>Contact Info {sortCol === 'name' && (sortDir === 'asc' ? '↑' : '↓')}</th>
+              <th className="px-4 py-3 cursor-pointer hover:text-white transition" onClick={() => toggleSort("projectType")}>Project Details {sortCol === 'projectType' && (sortDir === 'asc' ? '↑' : '↓')}</th>
               <th className="px-4 py-3">Source</th>
-              <th className="px-4 py-3 max-w-xs">Message</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Date</th>
+              <th className="px-4 py-3 max-w-xs">Context Notes</th>
+              <th className="px-4 py-3 cursor-pointer hover:text-white transition" onClick={() => toggleSort("status")}>Status {sortCol === 'status' && (sortDir === 'asc' ? '↑' : '↓')}</th>
+              <th className="px-4 py-3 cursor-pointer hover:text-white transition" onClick={() => toggleSort("createdAt")}>Date {sortCol === 'createdAt' && (sortDir === 'asc' ? '↑' : '↓')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
@@ -597,9 +668,37 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
                   )}
                 </td>
                 <td className="px-4 py-4 max-w-xs">
-                  <div className="text-xs text-slate-300 line-clamp-3" title={lead.message || ""}>
-                    {lead.message || "No message provided."}
-                  </div>
+                  {editingNotesId === lead.id ? (
+                    <div className="flex flex-col gap-2">
+                      <textarea 
+                        value={editNotesValue} 
+                        onChange={(e) => setEditNotesValue(e.target.value)} 
+                        className="bg-[#0A0A0F] border border-white/20 rounded px-2 py-1 text-xs text-white w-full outline-none focus:border-brand-primary min-h-[60px]"
+                        placeholder="Enter context notes..."
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={() => handleSaveNotes(lead.id)} disabled={savingNotes === lead.id} className="text-green-400 hover:text-green-300 text-xs flex items-center gap-1">
+                          {savingNotes === lead.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />} Save
+                        </button>
+                        <button onClick={() => setEditingNotesId(null)} className="text-slate-400 hover:text-slate-300 text-xs">Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="group relative">
+                      <div className="text-xs text-slate-300 line-clamp-3" title={lead.contextNotes || ""}>
+                        {lead.contextNotes || <span className="text-slate-600 italic">No notes</span>}
+                      </div>
+                      <button onClick={() => { setEditingNotesId(lead.id); setEditNotesValue(lead.contextNotes || ""); }} className="absolute top-0 right-0 p-1 bg-[#111] border border-white/10 rounded text-slate-400 hover:text-brand-primary opacity-0 group-hover:opacity-100 transition shadow-lg">
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                  {lead.message && (
+                    <div className="mt-2 pt-2 border-t border-white/5 text-[10px] text-slate-500 line-clamp-2" title={lead.message}>
+                      Msg: {lead.message}
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-4">
                   <select 
@@ -624,7 +723,12 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
                   </select>
                 </td>
                 <td className="px-4 py-4 text-xs whitespace-nowrap">
-                  {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : 'N/A'}
+                  <div className="text-slate-300">{lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : 'N/A'}</div>
+                  {lead.lastEmailedAt && (
+                    <div className="text-[10px] text-brand-primary mt-1 flex items-center gap-1" title={new Date(lead.lastEmailedAt).toLocaleString()}>
+                      <CheckCircle className="w-3 h-3" /> Sent
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}

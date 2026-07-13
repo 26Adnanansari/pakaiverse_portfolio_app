@@ -18,11 +18,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "No lead IDs provided" }, { status: 400 });
     }
 
-    // Fetch all leads
-    const leadsData = await db
-      .select()
-      .from(leads)
-      .where(inArray(leads.id, leadIds));
+    const leadsData = await db.select().from(leads).where(inArray(leads.id, leadIds));
 
     if (leadsData.length === 0) {
       return NextResponse.json({ success: false, error: "No leads found" }, { status: 404 });
@@ -32,36 +28,66 @@ export async function POST(request: Request) {
     const errors = [];
 
     for (const lead of leadsData) {
-      // Skip leads without a real email
       if (!lead.email || lead.email.startsWith("pending_enrichment_")) {
         errors.push({ id: lead.id, reason: "No valid email" });
         continue;
       }
 
       const leadName = lead.name || "Business Owner";
-      const niche = lead.projectType || "your business";
-      const contextNotes = lead.message?.substring(0, 300) || "";
+      const niche = lead.projectType || "business";
+      const website = lead.websiteUrl || "";
+      const contextNotes = (lead.contextNotes || "").trim();
 
-      const prompt = `You are an outreach specialist for PakAiVerse, a premium AI-powered web development agency based in Pakistan.
+      // Context-driven vs fallback prompt strategy
+      let contextSection: string;
+      if (contextNotes.length > 10) {
+        // PRIMARY PATH: Admin wrote specific observations — make this the email's core
+        contextSection = `
+SPECIFIC CONTEXT FROM ADMIN (THIS IS THE MOST IMPORTANT PART — base the email's angle and hook primarily on these notes):
+"${contextNotes}"
 
-Write a SHORT, personalized cold outreach email to ${leadName} who runs a ${niche} business.
+You MUST pull out the specific point(s) made in these notes and build the email around them.
+Do not write a generic email — this context must be the central angle of the message.
+If the notes are in Roman Urdu or mixed language, extract the key points and write the email professionally in English.`;
+      } else {
+        // FALLBACK PATH: No custom context — use available signals
+        contextSection = `
+Available signals (use whichever are relevant):
+- Niche/category: ${niche}
+- Website: ${website ? website : "they appear to have no website (make this the hook — offer to build them one)"}
+- No specific notes from admin — write a warm, genuine outreach based on their niche`;
+      }
 
-Context about this lead: ${contextNotes}
+      const prompt = `You are Adnan from PakAiVerse — a small AI-powered web dev agency based in Pakistan. You're writing a personal cold outreach email.
 
-Rules:
-- Max 120 words in body (very concise)
-- Mention their specific niche (${niche}) naturally
-- Focus on one clear value proposition: we build modern AI-powered websites that get them more customers
-- End with a soft CTA like "Would you be open to a quick 15-minute call this week?"
-- Friendly, professional tone — not pushy
-- Do NOT include subject line in body
-- Write in plain text, no HTML tags
+Your tone: warm, genuine, human — like one business owner reaching out to another. NOT corporate. NOT stiff. NOT a sales pitch. Conversational but professional.
+
+Lead name: ${leadName}
+Business type: ${niche}
+${contextSection}
+
+STRICT RULES:
+- Write EXACTLY 3 short paragraphs. Each paragraph = 2-3 sentences max.
+- Paragraph 1: Open with something specific and genuine about THEIR business (using the context above). Not "I hope this finds you well."
+- Paragraph 2: Explain naturally (not salesy) how PakAiVerse could specifically help them — tied to the context.
+- Paragraph 3: Soft CTA — "Would you be open to a quick 15-minute chat?" or similar.
+- Max 120 words total in body
 - Sign off as: Adnan | PakAiVerse
+- DO NOT start with "I hope", "We are", or "My name is"
+- DO NOT use exclamation marks excessively
+- Write in plain text, no HTML
+- CRITICAL: Separate each paragraph with a blank line (double newline)
 
-Return this exact format (nothing else):
-SUBJECT: [your subject here]
+Return ONLY this format:
+SUBJECT: [one short, specific, non-clickbait subject line]
 BODY:
-[email body here]`;
+[paragraph 1]
+
+[paragraph 2]
+
+[paragraph 3]
+
+[sign off]`;
 
       let rawText = "";
       try {
@@ -72,13 +98,13 @@ BODY:
         await db.update(leads).set({ status: "ai-failed" }).where(eq(leads.id, lead.id));
         continue;
       }
+
       const subjectMatch = rawText.match(/^SUBJECT:\s*(.+)/m);
       const bodyMatch = rawText.match(/BODY:\n([\s\S]+)/m);
 
       const subject = subjectMatch ? subjectMatch[1].trim() : `Quick Question for ${leadName}`;
       const body = bodyMatch ? bodyMatch[1].trim() : rawText;
 
-      // Save to emailQueue as pending (admin must approve to send)
       await db.insert(emailQueue).values({
         leadId: lead.id,
         subject,
@@ -87,23 +113,18 @@ BODY:
         status: "pending",
       });
 
-      // Update lead status to "draft_ready" (only if successful)
-      await db.update(leads)
-        .set({ status: "draft_ready" })
-        .where(eq(leads.id, lead.id));
+      await db.update(leads).set({ status: "draft_ready" }).where(eq(leads.id, lead.id));
 
       results.push({ id: lead.id, name: lead.name, subject });
 
-      // Add 1.5s delay to avoid rapid-fire rate limits on the same AI provider
-      // This is crucial since this is a sequential for...of loop processing multiple leads
       await new Promise(res => setTimeout(res, 1500));
     }
 
     if (results.length === 0) {
       const errorMsg = errors.map(e => `Lead ${e.id}: ${e.reason}`).join(", ");
-      return NextResponse.json({ 
-        success: false, 
-        error: `0 drafts created. Reasons: ${errorMsg || "Unknown error"}` 
+      return NextResponse.json({
+        success: false,
+        error: `0 drafts created. Reasons: ${errorMsg || "Unknown error"}`
       }, { status: 400 });
     }
 
@@ -111,7 +132,7 @@ BODY:
       success: true,
       drafted: results.length,
       errors: errors.length > 0 ? errors : undefined,
-      message: `${results.length} draft(s) created. ${errors.length > 0 ? `(${errors.length} failed)` : ''} Go to Emails tab to review and approve.`,
+      message: `${results.length} draft(s) created. ${errors.length > 0 ? `(${errors.length} failed)` : ""} Go to Emails tab to review and approve.`,
     });
 
   } catch (error) {

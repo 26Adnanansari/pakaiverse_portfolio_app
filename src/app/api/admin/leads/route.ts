@@ -11,7 +11,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, status, email } = await request.json();
+    const { id, status, email, contextNotes } = await request.json();
 
     if (!id) {
       return NextResponse.json({ success: false, error: "Missing lead id" }, { status: 400 });
@@ -22,6 +22,9 @@ export async function PATCH(request: Request) {
     if (email && typeof email === "string" && email.includes("@") && !email.startsWith("pending_enrichment_")) {
       updates.email = email.trim();
       if (!status) updates.status = "enriched";
+    }
+    if (contextNotes !== undefined) {
+      updates.contextNotes = contextNotes;
     }
 
     if (Object.keys(updates).length === 0) {
