@@ -11,7 +11,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, status, email, contextNotes } = await request.json();
+    const { id, status, email, contextNotes, phone, websiteUrl } = await request.json();
 
     if (!id) {
       return NextResponse.json({ success: false, error: "Missing lead id" }, { status: 400 });
@@ -25,6 +25,12 @@ export async function PATCH(request: Request) {
     }
     if (contextNotes !== undefined) {
       updates.contextNotes = contextNotes;
+    }
+    if (phone !== undefined) {
+      updates.phone = phone;
+    }
+    if (websiteUrl !== undefined) {
+      updates.websiteUrl = websiteUrl;
     }
 
     if (Object.keys(updates).length === 0) {

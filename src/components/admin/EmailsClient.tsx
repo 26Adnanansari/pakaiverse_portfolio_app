@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Mail, PenTool, Eye, AlertCircle, X, Loader2, Send, RefreshCw } from "lucide-react";
+import { Mail, PenTool, Eye, AlertCircle, X, Loader2, Send, RefreshCw, Trash2 } from "lucide-react";
 
 type TabMode = "AI_DRAFTS" | "CUSTOM_COMPOSE";
 
@@ -20,6 +20,7 @@ export function EmailsClient({ initialDrafts = [] }: { initialDrafts?: Draft[] }
   const [previewEmail, setPreviewEmail] = useState<Draft | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [customSubject, setCustomSubject] = useState("");
   const [customBody, setCustomBody] = useState("");
   const [customRecipientEmail, setCustomRecipientEmail] = useState("");
@@ -68,6 +69,30 @@ export function EmailsClient({ initialDrafts = [] }: { initialDrafts?: Draft[] }
       alert("Failed to approve email.");
     } finally {
       setApprovingId(null);
+    }
+  };
+
+  const handleDeleteDraft = async (draftId: string) => {
+    if (!confirm("Are you sure you want to delete this draft?")) return;
+    setDeletingId(draftId);
+    try {
+      const res = await fetch(`/api/admin/email-drafts?id=${draftId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDrafts(prev => prev.filter(d => d.id !== draftId));
+        if (previewEmail?.id === draftId) {
+          setPreviewEmail(null);
+        }
+      } else {
+        alert("Failed to delete draft: " + data.error);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete draft.");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -198,11 +223,19 @@ export function EmailsClient({ initialDrafts = [] }: { initialDrafts?: Draft[] }
                         </button>
                         <button 
                           onClick={() => handleApprove(draft)}
-                          disabled={approvingId === draft.id}
+                          disabled={approvingId === draft.id || deletingId === draft.id}
                           className="flex items-center justify-center gap-1.5 bg-brand-primary hover:bg-brand-primary/80 text-black px-3 py-1.5 rounded text-xs transition font-bold disabled:opacity-60"
                         >
                           {approvingId === draft.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                           {approvingId === draft.id ? "Sending..." : "Approve & Send"}
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteDraft(draft.id)}
+                          disabled={approvingId === draft.id || deletingId === draft.id}
+                          className="flex items-center justify-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 px-3 py-1.5 rounded text-xs transition disabled:opacity-60"
+                          title="Delete Draft"
+                        >
+                          {deletingId === draft.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                         </button>
                       </div>
                     </td>
@@ -303,6 +336,13 @@ export function EmailsClient({ initialDrafts = [] }: { initialDrafts?: Draft[] }
             
             <div className="p-4 border-t border-white/10 bg-black/20 flex justify-end gap-3">
               <button 
+                onClick={() => previewEmail && handleDeleteDraft(previewEmail.id)}
+                disabled={!!approvingId || !!deletingId}
+                className="px-4 py-2 text-sm text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition mr-auto flex items-center gap-2 disabled:opacity-60"
+              >
+                {deletingId === previewEmail?.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />} Delete
+              </button>
+              <button 
                 onClick={() => setPreviewEmail(null)}
                 className="px-4 py-2 text-sm text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition"
               >
@@ -310,7 +350,7 @@ export function EmailsClient({ initialDrafts = [] }: { initialDrafts?: Draft[] }
               </button>
               <button 
                 onClick={() => previewEmail && handleApprove(previewEmail)}
-                disabled={!!approvingId}
+                disabled={!!approvingId || !!deletingId}
                 className="px-4 py-2 text-sm text-black bg-brand-primary hover:bg-brand-primary/80 rounded-lg transition flex items-center gap-2 font-bold disabled:opacity-60"
               >
                 {approvingId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

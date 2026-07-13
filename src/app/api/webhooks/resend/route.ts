@@ -10,8 +10,14 @@ export async function POST(req: Request) {
     const payload = JSON.parse(rawBody);
 
     // Detect event type early so we can apply correct verification
-    const type = payload.type;
-    const data = payload.data;
+    let type = payload.type;
+    let data = payload.data;
+
+    // Resend inbound webhook sends the email directly without a `type` wrapper
+    if (!type && payload.from && payload.subject !== undefined) {
+      type = "email.received";
+      data = payload;
+    }
 
     // ---------------------------------------------------------
     // SIGNATURE VERIFICATION

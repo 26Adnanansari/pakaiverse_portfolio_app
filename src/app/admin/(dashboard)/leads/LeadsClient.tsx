@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Filter, Trash2, CheckCircle, ChevronDown, CheckSquare, Square, Sparkles, Search, Loader2, Edit2, Globe } from "lucide-react";
+import { Filter, Trash2, CheckCircle, ChevronDown, CheckSquare, Square, Sparkles, Search, Loader2, Edit2, Globe, Bot } from "lucide-react";
 
 type Lead = {
   id: number;
   name: string | null;
   email: string;
   phone: string | null;
+  websiteUrl: string | null;
   projectType: string | null;
   budget: string | null;
   message: string | null;
@@ -28,6 +29,10 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
   const [isSourceFilterOpen, setIsSourceFilterOpen] = useState(false);
   const [editingEmailId, setEditingEmailId] = useState<number | null>(null);
   const [editEmailValue, setEditEmailValue] = useState("");
+  const [editingPhoneId, setEditingPhoneId] = useState<number | null>(null);
+  const [editPhoneValue, setEditPhoneValue] = useState("");
+  const [editingWebsiteId, setEditingWebsiteId] = useState<number | null>(null);
+  const [editWebsiteValue, setEditWebsiteValue] = useState("");
   const [editingNotesId, setEditingNotesId] = useState<number | null>(null);
   const [editNotesValue, setEditNotesValue] = useState("");
   const [savingNotes, setSavingNotes] = useState<number | null>(null);
@@ -237,6 +242,50 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
         setEditingEmailId(null);
       } else {
         alert("Failed to update email");
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const handleSavePhone = async (id: number) => {
+    setUpdating(id);
+    try {
+      const res = await fetch("/api/admin/leads", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, phone: editPhoneValue }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLeads(leads.map(l => l.id === id ? { ...l, phone: editPhoneValue } : l));
+        setEditingPhoneId(null);
+      } else {
+        alert("Failed to update phone");
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const handleSaveWebsite = async (id: number) => {
+    setUpdating(id);
+    try {
+      const res = await fetch("/api/admin/leads", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, websiteUrl: editWebsiteValue }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLeads(leads.map(l => l.id === id ? { ...l, websiteUrl: editWebsiteValue } : l));
+        setEditingWebsiteId(null);
+      } else {
+        alert("Failed to update website");
       }
     } catch (error) {
       console.error(error);
@@ -530,7 +579,7 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
           
           {isSourceFilterOpen && (
              <div className="absolute top-full left-0 mt-2 w-full sm:w-48 bg-[#111118] border border-white/10 rounded-lg shadow-xl z-10 py-1">
-              {['all', 'inbound', 'outbound', 'manual'].map((s) => (
+              {['all', 'inbound', 'chatbot', 'outbound', 'manual'].map((s) => (
                 <button
                   key={s}
                   onClick={() => { setSourceFilter(s); setIsSourceFilterOpen(false); }}
@@ -611,13 +660,12 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
                 <td className="px-4 py-4">
                   <div className="font-bold text-white flex items-center gap-2">
                     {lead.name || "N/A"}
-                    {lead.message?.includes("Website: http") ? (
-                      <span className="bg-green-500/20 text-green-400 text-[10px] px-1.5 py-0.5 rounded border border-green-500/30">Has Website</span>
-                    ) : (
-                      <span className="bg-slate-800 text-slate-400 text-[10px] px-1.5 py-0.5 rounded border border-slate-700">No Website</span>
+                    {lead.source === "chatbot" && (
+                      <span title="Came from Chatbot" className="flex items-center">
+                        <Bot className="w-4 h-4 text-fuchsia-400" />
+                      </span>
                     )}
                   </div>
-                  {/* TODO: Add dedicated is_enriched boolean column to DB for long-term robustness */}
                   {editingEmailId === lead.id ? (
                     <div className="flex items-center gap-2 mt-1">
                       <input 
@@ -634,9 +682,9 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
                       </button>
                     </div>
                   ) : lead.email.includes("pending_enrichment_") ? (
-                    <div className="flex items-center gap-2 mt-1 mb-1">
+                    <div className="flex items-center gap-2 mt-1 mb-1 group">
                       <div className="text-xs bg-slate-800/80 text-slate-400 border border-slate-700 rounded px-2 py-0.5 inline-block">Not Enriched Yet</div>
-                      <button onClick={() => { setEditingEmailId(lead.id); setEditEmailValue(""); }} className="text-slate-500 hover:text-brand-primary transition">
+                      <button onClick={() => { setEditingEmailId(lead.id); setEditEmailValue(""); }} className="text-slate-500 hover:text-brand-primary transition opacity-0 group-hover:opacity-100">
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -648,12 +696,73 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
                       </button>
                     </div>
                   )}
-                  {lead.phone ? (
-                    <div className="flex items-center gap-2">
+
+                  {editingPhoneId === lead.id ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <input 
+                        type="text" 
+                        value={editPhoneValue} 
+                        onChange={(e) => setEditPhoneValue(e.target.value)} 
+                        className="bg-[#0A0A0F] border border-white/20 rounded px-2 py-1 text-xs text-white w-full outline-none focus:border-brand-primary"
+                        placeholder="Enter phone..."
+                        autoFocus
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleSavePhone(lead.id) }}
+                      />
+                      <button onClick={() => handleSavePhone(lead.id)} disabled={updating === lead.id} className="text-green-400 hover:text-green-300">
+                        {updating === lead.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  ) : lead.phone ? (
+                    <div className="flex items-center gap-2 mt-1 group">
                       <span className="text-xs text-brand-primary">{lead.phone}</span>
+                      <button onClick={() => { setEditingPhoneId(lead.id); setEditPhoneValue(lead.phone || ""); }} className="text-slate-500 hover:text-brand-primary transition opacity-0 group-hover:opacity-100">
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   ) : (
-                    <div className="text-xs text-slate-500">No Phone</div>
+                    <div className="flex items-center gap-2 mt-1 group">
+                      <div className="text-xs text-slate-500">No Phone</div>
+                      <button onClick={() => { setEditingPhoneId(lead.id); setEditPhoneValue(""); }} className="text-slate-500 hover:text-brand-primary transition opacity-0 group-hover:opacity-100">
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  {editingWebsiteId === lead.id ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <input 
+                        type="text" 
+                        value={editWebsiteValue} 
+                        onChange={(e) => setEditWebsiteValue(e.target.value)} 
+                        className="bg-[#0A0A0F] border border-white/20 rounded px-2 py-1 text-xs text-white w-full outline-none focus:border-brand-primary"
+                        placeholder="Enter website URL..."
+                        autoFocus
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleSaveWebsite(lead.id) }}
+                      />
+                      <button onClick={() => handleSaveWebsite(lead.id)} disabled={updating === lead.id} className="text-green-400 hover:text-green-300">
+                        {updating === lead.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  ) : lead.websiteUrl || lead.message?.includes("Website: http") ? (
+                    <div className="flex items-center gap-2 mt-1 group">
+                      {lead.websiteUrl ? (
+                        <a href={lead.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline max-w-[150px] truncate" title={lead.websiteUrl}>
+                          {lead.websiteUrl}
+                        </a>
+                      ) : (
+                        <span className="bg-green-500/20 text-green-400 text-[10px] px-1.5 py-0.5 rounded border border-green-500/30">Has Website (In Msg)</span>
+                      )}
+                      <button onClick={() => { setEditingWebsiteId(lead.id); setEditWebsiteValue(lead.websiteUrl || ""); }} className="text-slate-500 hover:text-brand-primary transition opacity-0 group-hover:opacity-100">
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 mt-1 group">
+                      <span className="bg-slate-800 text-slate-400 text-[10px] px-1.5 py-0.5 rounded border border-slate-700">No Website</span>
+                      <button onClick={() => { setEditingWebsiteId(lead.id); setEditWebsiteValue(""); }} className="text-slate-500 hover:text-brand-primary transition opacity-0 group-hover:opacity-100">
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   )}
                 </td>
                 <td className="px-4 py-4">
@@ -661,8 +770,10 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
                   <div className="text-xs mt-1"><span className="text-slate-500">Budget:</span> {lead.budget || "N/A"}</div>
                 </td>
                 <td className="px-4 py-4">
-                  {(lead.source === "chatbot" || lead.source === "contact-form") ? (
-                    <span className="bg-yellow-500/20 text-yellow-400 text-xs px-2 py-1 rounded-md border border-yellow-500/30 font-medium">Inbound ⭐</span>
+                  {lead.source === "chatbot" ? (
+                    <span className="bg-fuchsia-500/20 text-fuchsia-400 text-xs px-2 py-1 rounded-md border border-fuchsia-500/30 font-bold flex items-center gap-1.5 w-fit"><Bot className="w-3.5 h-3.5" /> Chatbot</span>
+                  ) : lead.source === "contact-form" ? (
+                    <span className="bg-yellow-500/20 text-yellow-400 text-xs px-2 py-1 rounded-md border border-yellow-500/30 font-medium">Contact Form ⭐</span>
                   ) : (
                     <span className="text-xs text-slate-400 capitalize">{lead.source || "Unknown"}</span>
                   )}
