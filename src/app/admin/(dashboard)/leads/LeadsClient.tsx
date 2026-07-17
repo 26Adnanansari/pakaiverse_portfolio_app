@@ -834,7 +834,7 @@ export default function LeadsClient({ leads: initialLeads }: { leads: Lead[] }) 
                   </select>
                 </td>
                 <td className="px-4 py-4 text-xs whitespace-nowrap">
-                  <div className="text-slate-300">{lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : 'N/A'}</div>
+                  <div className="text-slate-300">{lead.createdAt ? new Date(lead.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}</div>
                   {lead.lastEmailedAt && (
                     <div className="text-[10px] text-brand-primary mt-1 flex items-center gap-1" title={new Date(lead.lastEmailedAt).toLocaleString()}>
                       <CheckCircle className="w-3 h-3" /> Sent

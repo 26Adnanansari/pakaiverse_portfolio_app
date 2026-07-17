@@ -16,7 +16,7 @@ export default async function AdminLeadsPage() {
     redirect("/admin/login");
   }
 
-  const allLeads = await db.select().from(leads).orderBy(desc(leads.createdAt));
+  const allLeads = await db.select().from(leads).orderBy(desc(leads.createdAt)).limit(20);
 
   // Serialize dates for client component
   const serializedLeads = allLeads.map((lead) => ({

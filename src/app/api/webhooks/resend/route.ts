@@ -102,8 +102,17 @@ export async function POST(req: Request) {
 
       if (existingLead.length === 0) {
         console.warn(`[Webhook] email.received: no lead found for email=${cleanEmail}`);
-        // Still return 200 so Resend doesn't retry — just not a lead we track
-        return NextResponse.json({ success: true, note: "Lead not found" });
+        
+        // Save the unmapped email so the admin can still see it in the DB
+        await db.insert(replies).values({
+          leadId: null,
+          messageId: data.messageId || data.id || `inbound-${Date.now()}`,
+          content: `[UNMATCHED SENDER: ${cleanEmail}]\n\n${textContent.slice(0, 4800)}`,
+          sentiment: "neutral",
+          status: "pending",
+        });
+        
+        return NextResponse.json({ success: true, note: "Lead not found, saved as unmapped" });
       }
 
       const lead = existingLead[0];

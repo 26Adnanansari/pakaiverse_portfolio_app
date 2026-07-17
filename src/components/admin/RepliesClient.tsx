@@ -51,17 +51,26 @@ export function RepliesClient() {
       const res = await fetch("/api/admin/replies");
       const data = await res.json();
       if (data.success && data.replies) {
-        const mapped: Reply[] = data.replies.map((r: DbReply) => ({
-          id: r.id,
-          prospectName: r.leadName || "Unknown",
-          company: r.leadProjectType || "Unknown Project",
-          email: r.leadEmail || "Unknown",
-          sentiment: r.sentiment || "neutral",
-          originalMessage: "Previous email thread...", // We don't store original email in replies table yet
-          replyBody: r.content,
-          suggestedResponse: r.aiSuggestedResponse || "",
-          receivedAt: r.receivedAt,
-        }));
+        const mapped: Reply[] = data.replies.map((r: DbReply) => {
+          const isUnmapped = r.content?.startsWith("[UNMATCHED SENDER:");
+          let extractedEmail = r.leadEmail;
+          if (isUnmapped) {
+             const m = r.content.match(/\[UNMATCHED SENDER: (.*?)\]/);
+             if (m) extractedEmail = m[1];
+          }
+
+          return {
+            id: r.id,
+            prospectName: r.leadName || (isUnmapped ? "Unmapped Sender" : "Unknown"),
+            company: r.leadProjectType || "Unknown Project",
+            email: extractedEmail || "Unknown",
+            sentiment: r.sentiment || "neutral",
+            originalMessage: "Previous email thread...", // We don't store original email in replies table yet
+            replyBody: r.content,
+            suggestedResponse: r.aiSuggestedResponse || "",
+            receivedAt: r.receivedAt,
+          };
+        });
         
         // Sort interested first
         mapped.sort((a, b) => {
