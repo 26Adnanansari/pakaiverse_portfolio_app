@@ -109,6 +109,8 @@ export default function ChatBot() {
       ]);
     } finally {
       setIsLoading(false);
+      // Re-focus input so user can keep typing without clicking
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
 
