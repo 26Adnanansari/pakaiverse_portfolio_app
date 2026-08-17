@@ -73,7 +73,7 @@ async function getAIReply(messages: { role: string; text: string }[]): Promise<s
     return await generateWithFallback(messages, promptWithHint);
   } catch (error) {
     console.error("[PakAiBot] All AI providers failed:", error);
-    return "I'm a bit busy right now 😅 Please try again in a moment, or reach us directly at contact@pakaiverse.com";
+    return "I'm a bit busy right now 😅 Please try again in a moment, or reach us directly at adnan@mail.pakaiverse.com";
   }
 }
 
@@ -126,7 +126,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("[PakAiBot] Fatal error:", error);
     return NextResponse.json({
-      reply: "Something went wrong. Please try again or email contact@pakaiverse.com",
+      reply: "Something went wrong. Please try again or email adnan@mail.pakaiverse.com",
     });
   }
 }
