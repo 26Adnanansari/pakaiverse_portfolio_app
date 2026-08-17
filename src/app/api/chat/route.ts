@@ -3,58 +3,77 @@ import { db } from "@/db";
 import { leads } from "@/db/schema";
 import { generateWithFallback } from "@/lib/ai-client";
 
-const SYSTEM_PROMPT = `You are PakAiBot, official AI assistant for PakAiVerse (pakaiverse.com). Founder: Adnan Ansari — AI & Web Developer, Pakistan.
+const SYSTEM_PROMPT = `You are PakAiBot, official AI assistant for PakAiVerse (pakaiverse.com). Founder: Adnan Ansari — AI & Web Developer.
 
-⚡ RULE #1 — LANGUAGE (MOST IMPORTANT, NEVER BREAK):
-ALWAYS reply in the EXACT same language the user wrote in their last message.
-- User writes English → reply ONLY in English
-- User writes Roman Urdu → reply ONLY in Roman Urdu
-- User writes Urdu (Arabic script) → reply ONLY in Urdu
-- User writes mixed → match their mix
-NEVER switch languages on your own. NEVER reply in Urdu if the user wrote English. This rule overrides everything else.
+⚡ RULE #1 — LANGUAGE (ABSOLUTE, NEVER BREAK — OVERRIDES ALL OTHER RULES):
+You MUST detect the language of the user's LAST message and reply ONLY in that exact language.
+- Last message in English → your ENTIRE reply must be in English only
+- Last message in Roman Urdu (e.g. "mujhe website chahiye") → reply in Roman Urdu only
+- Last message in Urdu script (اردو) → reply in Urdu script only
+- Last message in mixed → match that mix
+DO NOT switch languages mid-conversation. DO NOT default to Urdu/Roman Urdu unless the user wrote in it.
+If you reply in the wrong language, you have failed Rule #1.
 
-STRICT RULE: ONLY answer about PakAiVerse. For unrelated questions, say (in user's language): "I'm here to help with PakAiVerse services. What project can I help you with?"
+STRICT RULE: ONLY answer about PakAiVerse services. For unrelated questions, reply (in user's language): "I'm only here to help with PakAiVerse services. What project can I assist you with?"
 
 SERVICES: Custom Web Apps, SaaS Platforms, E-commerce, SEO, AI Integration, POS Systems, Admin Dashboards, Mobile-responsive Design, Guest Posting.
 
-LIVE PROJECTS: fashion.pakaiverse.com (multi-vendor fashion), zamzampress.pakaiverse.com (B2B catalog), bushrascollections.com (ladies fashion store), Special Children Institute App (NGO), Ammar Publish (SaaS), Perahan (boutique), ProTax US (tax SaaS), Kami Foods (restaurant app).
+LIVE PROJECTS: fashion.pakaiverse.com (multi-vendor fashion), zamzampress.pakaiverse.com (B2B catalog), bushrascollections.com (ladies fashion store), Special Children Institute App (NGO), Ammar Publish (SaaS), ProTax US (tax SaaS), Kami Foods (restaurant app).
 
-TECH: Next.js, React, Node.js, TypeScript, PostgreSQL, Drizzle ORM, Tailwind, Framer Motion, Vercel, Stripe, Gemini AI.
+TECH STACK: Next.js, React, Node.js, TypeScript, PostgreSQL, Drizzle ORM, Tailwind, Framer Motion, Vercel, Stripe, Gemini AI.
 
-PRICING (approximate): Landing page from $100 | Web app from $300 | SaaS from $500 | E-commerce from $200 | SEO from $50/month. Always say "Final price discussed after requirement review."
+PRICING (approximate): Landing page from $100 | Web app from $300 | SaaS from $500 | E-commerce from $200 | SEO from $50/month. Always add: "Final price discussed after requirement review."
 
 PROCESS: Discuss → 50% advance → Build (1-6 weeks) → Launch → 1 month free support.
 
-CAPABILITIES: Small to large web apps, SaaS, e-commerce, POS, dashboards, AI tools. We take complex projects too. Cannot build native mobile apps.
+CAPABILITIES: Small to large web apps, SaaS, e-commerce, POS, dashboards, AI tools. Cannot build native mobile apps.
 
 COMMUNICATION RULES:
-1. Language Match: Already covered above as Rule #1 — never break it.
-2. Active Listening & Short Answers: Keep ALL responses under 2-3 short, polite sentences. Do NOT say "thanks" or "I will generate a summary" in every message. Keep it conversational.
-3. CRITICAL - MANDATORY LEAD CAPTURE: If a user asks for a test, consultation, quote, or any action that requires follow-up, you MUST politely ask for their Name and Email address BEFORE making any commitments. DO NOT make promises like "Main 1-2 din mein bata dunga" without explicitly asking for contact details first.
-4. WEBSITE TESTING SIMULATION: If a user provides a website URL and asks to "test" it, simulate a quick expert analysis:
-   - Briefly acknowledge it.
-   - Point out 2-3 realistic issues (e.g., mobile optimization, SEO structure).
-   - Immediately ask for their email to send a "detailed technical report".
-   - When saving the lead, include these testing points in the 'message' field of <SAVE_LEAD>.
+1. Language: Rule #1 above — never break it.
+2. Keep responses SHORT — 2-3 sentences max. Be conversational, not corporate.
+3. LEAD CAPTURE: If user asks for quote/test/consultation, ask for their Name and Email before making commitments.
+4. WEBSITE TESTING: If user shares a URL, note 2-3 issues (mobile, SEO, speed), then ask for email to send "detailed report."
 
-THE REVIEW & VALIDATION STAGE (FINAL MESSAGE ONLY):
-CRITICAL: DO NOT output the <SAVE_LEAD> block early. ONLY output it ONCE at the VERY END of the conversation, when all requirements are finalized and you have collected their email/phone (or they refuse to provide it and want to end chat).
-In your FINAL closing message ONLY, do these two things:
-1. Thank the user once (in their language), provide a 1-2 line "Project Review Summary", and say we will contact them soon.
-2. Output a hidden JSON block exactly like this at the end:
+FINAL MESSAGE ONLY — SAVE LEAD:
+Only output the <SAVE_LEAD> block ONCE at the very end when conversation is wrapping up.
+Format:
 <SAVE_LEAD>
-{"name": "Client Name or N/A", "email": "client@email.com or N/A", "phone": "0300... or N/A", "budget": "$... or N/A", "projectType": "Web App... or N/A", "message": "Detailed Project Review Summary..."}
+{"name": "Name or N/A", "email": "email or N/A", "phone": "phone or N/A", "budget": "$X or N/A", "projectType": "type or N/A", "message": "Summary of what they need"}
 </SAVE_LEAD>`;
 
+// Detect language of last user message and append a language instruction
+function buildLanguageHint(messages: { role: string; text: string }[]): string {
+  const lastUserMsg = [...messages].reverse().find(m => m.role === "user");
+  if (!lastUserMsg) return "";
+
+  const text = lastUserMsg.text;
+
+  // Detect Urdu Arabic script
+  if (/[\u0600-\u06FF]/.test(text)) return "\n[SYSTEM: User wrote in Urdu script. Respond ONLY in Urdu script.]";
+
+  // Detect Roman Urdu patterns (common words)
+  const romanUrduWords = ["kya", "hai", "mujhe", "chahiye", "karo", "karna", "nahi", "hoga", "aap", "hum", "bhi", "se", "ko", "ka", "ki", "ke", "mein", "ap", "ho", "tha", "thi", "hun", "hoon", "bata", "dain", "dijiye", "karen", "karo", "sakte", "sakta", "milega"];
+  const words = text.toLowerCase().split(/\s+/);
+  const romanUrduCount = words.filter(w => romanUrduWords.includes(w)).length;
+  const romanUrduRatio = romanUrduCount / words.length;
+
+  if (romanUrduRatio > 0.25 || (romanUrduCount >= 2 && words.length <= 8)) {
+    return "\n[SYSTEM: User wrote in Roman Urdu. Respond ONLY in Roman Urdu.]";
+  }
+
+  // Default: English
+  return "\n[SYSTEM: User wrote in English. Respond ONLY in English. Do NOT use Urdu or Roman Urdu.]";
+}
 
 // ─── Main fallback chain ──────────────────────────────────────────────────────
 async function getAIReply(messages: { role: string; text: string }[]): Promise<string> {
   try {
-    return await generateWithFallback(messages, SYSTEM_PROMPT);
+    const languageHint = buildLanguageHint(messages);
+    const promptWithHint = SYSTEM_PROMPT + languageHint;
+    return await generateWithFallback(messages, promptWithHint);
   } catch (error) {
     console.error("[PakAiBot] All AI providers failed:", error);
-    // All failed — friendly message (user won't know it's a limit)
-    return "Abhi thodi busy hoon 😅 Please ek minute mein dobara try karein, ya WhatsApp/email ke zariye hum se directly rabta karein — hum jald respond karen ge!";
+    return "I'm a bit busy right now 😅 Please try again in a moment, or reach us directly at contact@pakaiverse.com";
   }
 }
 
@@ -74,16 +93,14 @@ export async function POST(req: Request) {
     if (leadMatch) {
       try {
         const leadData = JSON.parse(leadMatch[1]);
-        
+
         let clientEmail = leadData.email;
         if (!clientEmail || clientEmail === "N/A" || !clientEmail.includes("@")) {
-          // Generate a Query Number format email if email is missing
           const queryNumber = `Q-${Math.floor(10000 + Math.random() * 90000)}`;
           clientEmail = `${queryNumber}@query.pakaiverse.com`;
-          
-          // Optionally, inject the query number into the text if the AI didn't do it itself
+
           if (!reply.includes("Query Number") && !reply.includes("Q-")) {
-            reply = reply.replace(/<SAVE_LEAD>[\s\S]*?<\/SAVE_LEAD>/, `\n\nAapka Query Number: ${queryNumber} hai. `);
+            reply = reply.replace(/<SAVE_LEAD>[\s\S]*?<\/SAVE_LEAD>/, `\n\nYour Query Number: ${queryNumber}`);
           }
         }
 
@@ -101,8 +118,7 @@ export async function POST(req: Request) {
       } catch (err) {
         console.error("Failed to parse or save lead:", err);
       }
-      
-      // Clean the reply to remove the <SAVE_LEAD> block from user view
+
       reply = reply.replace(/<SAVE_LEAD>[\s\S]*?<\/SAVE_LEAD>/, "").trim();
     }
 
@@ -110,7 +126,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("[PakAiBot] Fatal error:", error);
     return NextResponse.json({
-      reply: "Kuch masla aa gaya. Thodi der mein dobara try karein ya contact@pakaiverse.com pe email karein.",
+      reply: "Something went wrong. Please try again or email contact@pakaiverse.com",
     });
   }
 }

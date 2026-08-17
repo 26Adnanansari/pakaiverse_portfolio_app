@@ -19,7 +19,7 @@ type LeadData = {
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 const WELCOME_MSG: Message = {
   role: "bot",
-  text: "Hello! 👋 I'm **PakAiBot** — PakAiVerse's official AI assistant.\n\nHow can I help you today? (Feel free to ask in English, German, French, Spanish, or Roman Urdu)",
+  text: "Hello! 👋 I'm **PakAiBot** — PakAiVerse's AI assistant.\n\nHow can I help you today? Ask me anything about our web development, SaaS, or AI services.",
 };
 
 // Simple check: does the bot reply contain lead collection trigger?
