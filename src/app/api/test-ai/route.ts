@@ -25,7 +25,7 @@ export async function GET() {
 
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${key}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -74,7 +74,7 @@ export async function GET() {
           Authorization: `Bearer ${groqKey}`,
         },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
+          model: "llama-3.1-8b-instant",
           messages: [{ role: "user", content: "hi" }],
           max_tokens: 10,
         }),
@@ -107,7 +107,7 @@ export async function GET() {
           Authorization: `Bearer ${openrouterKey}`,
         },
         body: JSON.stringify({
-          model: "meta-llama/llama-3.1-8b-instruct:free",
+          model: "meta-llama/llama-3.1-8b-instruct",
           messages: [{ role: "user", content: "hi" }],
           max_tokens: 10,
         }),

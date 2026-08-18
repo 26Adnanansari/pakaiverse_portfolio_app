@@ -19,7 +19,7 @@ async function tryGemini(key: string, messages: Message[], systemPrompt?: string
     }
 
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${key}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -66,7 +66,7 @@ async function tryGroq(key: string, messages: Message[], systemPrompt?: string):
         Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "llama-3.1-8b-instant",
         messages: chatMessages,
         max_tokens: 500,
         temperature: 0.6,
@@ -114,7 +114,7 @@ async function tryOpenRouter(key: string, messages: Message[], systemPrompt?: st
         "X-Title": "PakAiVerse Services",
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-3.1-8b-instruct:free",
+        model: "meta-llama/llama-3.1-8b-instruct",
         messages: chatMessages,
         max_tokens: 500,
         temperature: 0.6,
