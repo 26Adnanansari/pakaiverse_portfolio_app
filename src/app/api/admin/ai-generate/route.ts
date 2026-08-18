@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 // Try multiple API keys in sequence — fallback if one quota is exhausted
 async function callGemini(prompt: string): Promise<{ text: string } | { error: string; status: number }> {
   const keys = [
+    process.env.GEMINI_API_KEY_BLOG,
     process.env.GEMINI_API_KEY,
     process.env.GEMINI_API_KEY_2,
     process.env.GEMINI_API_KEY_3,

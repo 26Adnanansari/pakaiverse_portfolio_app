@@ -91,7 +91,7 @@ BODY:
 
       let rawText = "";
       try {
-        rawText = await generateWithFallback(prompt);
+        rawText = await generateWithFallback(prompt, undefined, "email");
       } catch (aiError: unknown) {
         const errorMessage = aiError instanceof Error ? aiError.message : "AI fallback chain failed";
         errors.push({ id: lead.id, reason: errorMessage });

@@ -27,10 +27,20 @@ async function tryGemini(key: string, messages: Message[], systemPrompt?: string
       }
     );
 
-    if (res.status === 429 || !res.ok) return null;
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      console.warn(`[AI Client] Gemini failed — status: ${res.status} | key prefix: ${key.substring(0, 8)}... | body: ${errBody.substring(0, 200)}`);
+      return null;
+    }
+
     const data = await res.json();
-    return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-  } catch {
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+    if (!text) {
+      console.warn("[AI Client] Gemini returned empty response:", JSON.stringify(data).substring(0, 300));
+    }
+    return text;
+  } catch (err) {
+    console.error("[AI Client] Gemini exception:", err);
     return null;
   }
 }
@@ -63,10 +73,20 @@ async function tryGroq(key: string, messages: Message[], systemPrompt?: string):
       }),
     });
 
-    if (res.status === 429 || !res.ok) return null;
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      console.warn(`[AI Client] Groq failed — status: ${res.status} | key prefix: ${key.substring(0, 8)}... | body: ${errBody.substring(0, 200)}`);
+      return null;
+    }
+
     const data = await res.json();
-    return data?.choices?.[0]?.message?.content ?? null;
-  } catch {
+    const text = data?.choices?.[0]?.message?.content ?? null;
+    if (!text) {
+      console.warn("[AI Client] Groq returned empty response:", JSON.stringify(data).substring(0, 300));
+    }
+    return text;
+  } catch (err) {
+    console.error("[AI Client] Groq exception:", err);
     return null;
   }
 }
@@ -101,10 +121,16 @@ async function tryOpenRouter(key: string, messages: Message[], systemPrompt?: st
       }),
     });
 
-    if (res.status === 429 || !res.ok) return null;
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      console.warn(`[AI Client] OpenRouter failed — status: ${res.status} | body: ${errBody.substring(0, 200)}`);
+      return null;
+    }
+
     const data = await res.json();
     return data?.choices?.[0]?.message?.content ?? null;
-  } catch {
+  } catch (err) {
+    console.error("[AI Client] OpenRouter exception:", err);
     return null;
   }
 }
@@ -137,64 +163,110 @@ async function tryCerebras(key: string, messages: Message[], systemPrompt?: stri
       }),
     });
 
-    if (res.status === 429 || !res.ok) return null;
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      console.warn(`[AI Client] Cerebras failed — status: ${res.status} | body: ${errBody.substring(0, 200)}`);
+      return null;
+    }
+
     const data = await res.json();
     return data?.choices?.[0]?.message?.content ?? null;
-  } catch {
+  } catch (err) {
+    console.error("[AI Client] Cerebras exception:", err);
     return null;
   }
 }
 
 // ─── Main Fallback Chain function ─────────────────────────────────────────────
 /**
- * Tries multiple AI providers in sequence: Gemini -> Groq -> OpenRouter -> Cerebras.
+ * Tries multiple AI providers in sequence: Gemini → Groq → OpenRouter → Cerebras.
  * If all fail, throws an error so the caller knows it failed.
  */
 export async function generateWithFallback(
   prompt: string | Message[],
-  systemPrompt?: string
+  systemPrompt?: string,
+  caller: "chat" | "email" = "chat"
 ): Promise<string> {
-  const messages: Message[] = typeof prompt === "string" 
-    ? [{ role: "user", text: prompt }] 
+  const messages: Message[] = typeof prompt === "string"
+    ? [{ role: "user", text: prompt }]
     : prompt.slice(-8); // Keep last 8 for chat context
 
-  // [1] Gemini
-  // We can check multiple Gemini keys if provided in env
-  const geminiKeys = [
-    process.env.GEMINI_API_KEY_CHAT,
-    process.env.GEMINI_API_KEY,
-    process.env.GEMINI_API_KEY_2,
-    process.env.GEMINI_API_KEY_3,
-  ].filter(Boolean) as string[];
+  console.log(`[AI Client] Starting fallback chain with ${messages.length} messages (caller: ${caller})`);
+
+  // [1] Gemini — check multiple possible keys prioritized by caller
+  let geminiKeys: string[] = [];
+
+  if (caller === "chat") {
+    // For Chat: prioritize chat-specific key, then general keys, and blog key as last resort
+    geminiKeys = [
+      process.env.GEMINI_API_KEY_CHAT,
+      process.env.GEMINI_API_KEY,
+      process.env.GEMINI_API_KEY_2,
+      process.env.GEMINI_API_KEY_3,
+      process.env.GEMINI_API_KEY_BLOG,
+    ].filter(Boolean) as string[];
+  } else {
+    // For Emails/Outreach: prioritize general keys, then blog key, and chat key only as absolute last resort
+    geminiKeys = [
+      process.env.GEMINI_API_KEY,
+      process.env.GEMINI_API_KEY_2,
+      process.env.GEMINI_API_KEY_3,
+      process.env.GEMINI_API_KEY_BLOG,
+      process.env.GEMINI_API_KEY_CHAT,
+    ].filter(Boolean) as string[];
+  }
+
+  console.log(`[AI Client] Found ${geminiKeys.length} Gemini key(s) for caller: ${caller}`);
 
   for (const key of geminiKeys) {
     const reply = await tryGemini(key, messages, systemPrompt);
-    if (reply) return reply;
+    if (reply) {
+      console.log("[AI Client] ✅ Gemini responded successfully");
+      return reply;
+    }
   }
-  console.warn("[AI Client] Gemini quota hit/exhausted → trying Groq");
+  console.warn("[AI Client] ❌ All Gemini keys failed → trying Groq");
 
   // [2] Groq
   const groqKey = process.env.GROQ_API_KEY;
   if (groqKey) {
+    console.log("[AI Client] Trying Groq...");
     const reply = await tryGroq(groqKey, messages, systemPrompt);
-    if (reply) return reply;
-    console.warn("[AI Client] Groq quota hit → trying OpenRouter");
+    if (reply) {
+      console.log("[AI Client] ✅ Groq responded successfully");
+      return reply;
+    }
+    console.warn("[AI Client] ❌ Groq failed → trying OpenRouter");
+  } else {
+    console.warn("[AI Client] ⚠️ GROQ_API_KEY not set — skipping");
   }
 
   // [3] OpenRouter
   const openrouterKey = process.env.OPENROUTER_API_KEY;
   if (openrouterKey) {
+    console.log("[AI Client] Trying OpenRouter...");
     const reply = await tryOpenRouter(openrouterKey, messages, systemPrompt);
-    if (reply) return reply;
-    console.warn("[AI Client] OpenRouter quota hit → trying Cerebras");
+    if (reply) {
+      console.log("[AI Client] ✅ OpenRouter responded successfully");
+      return reply;
+    }
+    console.warn("[AI Client] ❌ OpenRouter failed → trying Cerebras");
+  } else {
+    console.warn("[AI Client] ⚠️ OPENROUTER_API_KEY not set — skipping");
   }
 
   // [4] Cerebras
   const cerebrasKey = process.env.CEREBRAS_API_KEY;
   if (cerebrasKey) {
+    console.log("[AI Client] Trying Cerebras...");
     const reply = await tryCerebras(cerebrasKey, messages, systemPrompt);
-    if (reply) return reply;
-    console.warn("[AI Client] Cerebras quota hit → all providers exhausted");
+    if (reply) {
+      console.log("[AI Client] ✅ Cerebras responded successfully");
+      return reply;
+    }
+    console.warn("[AI Client] ❌ Cerebras failed → all providers exhausted");
+  } else {
+    console.warn("[AI Client] ⚠️ CEREBRAS_API_KEY not set — skipping");
   }
 
   throw new Error("All AI providers (Gemini, Groq, OpenRouter, Cerebras) quota exhausted or failed.");
