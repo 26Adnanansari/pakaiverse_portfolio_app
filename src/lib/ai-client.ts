@@ -66,7 +66,7 @@ async function tryGroq(key: string, messages: Message[], systemPrompt?: string):
         Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
+        model: "openai/gpt-oss-20b",
         messages: chatMessages,
         max_tokens: 500,
         temperature: 0.6,

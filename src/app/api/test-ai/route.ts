@@ -74,7 +74,7 @@ export async function GET() {
           Authorization: `Bearer ${groqKey}`,
         },
         body: JSON.stringify({
-          model: "llama-3.1-8b-instant",
+          model: "openai/gpt-oss-20b",
           messages: [{ role: "user", content: "hi" }],
           max_tokens: 10,
         }),
